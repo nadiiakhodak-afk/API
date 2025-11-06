@@ -1,9 +1,10 @@
 {
   "title": "OpenAPI Reference",
-  "icon": "Code",
-  "defaultOpen": false,
+  "icon": "Layers",
   "pages": [
-    "Accounts",
-    "Payments"
+    "customers",
+    "accounts",
+    "transactions",
+    "payments"
   ]
 }

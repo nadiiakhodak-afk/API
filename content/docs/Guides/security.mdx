@@ -85,34 +85,48 @@ Requests to endpoints outside the granted scopes will be rejected.
 
 #### Error handling
 
-> 401 UNAUTHORIZED — missing, invalid, or expired token:
+##### 401 UNAUTHORIZED — missing, invalid, or expired token:
 ```json
 {
-"error": "unauthorized",
-"error_description": "Invalid or expired access token"
+  "error_name": "unauthorized",
+  "error_description": "Invalid or expired access token",
+  "metadata": {
+    "trace_id": "trc401"
+  }
 }
 ```
 
-> 400 INVALID_CLIENT — incorrect or unknown client credentials:
+##### 400 INVALID_CLIENT — incorrect or unknown client credentials:
 ```json
 {
-"error": "invalid_client",
-"error_description": "Client authentication failed"
+  "error_name": "invalid_client",
+  "error_description": "Client authentication failed",
+  "metadata": {
+    "trace_id": "trc401"
+  }
 }
 ```
 
-> 400 INVALID_SCOPE — unknown or disallowed scope:
+##### 400 INVALID_SCOPE — unknown or disallowed scope:
 ```json
 {
-"error": "invalid_scope",
-"error_description": "One or more scopes are not permitted"
+  "error_name": "invalid_scope",
+  "error_description": "One or more scopes are not permitted",
+  "metadata": {
+    "trace_id": "trc401"
+  }
 }
 ```
 
-> 403 INSUFFICIENT_PERMISSIONS — valid token, but missing required permission or scope:
+##### 403 INSUFFICIENT_PERMISSIONS — valid token, but missing required permission or scope:
 ```json
 {
-"error": "insufficient_permissions",
-"error_description": "Token scope does not permit this action"
+  "error_name": "insufficient_permissions",
+  "error_description": "Token scope does not permit this action",
+  "metadata": {
+    "trace_id": "trc401"
+  }
 }
 ```
+> The field is optional and may not appear in all responses. trace_id
+All examples use synthetic data and follow the unified PaySaxas error format.

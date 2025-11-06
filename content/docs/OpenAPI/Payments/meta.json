@@ -1,4 +1,10 @@
 {
-  "title": "Payments API",
-  "icon": "CreditCard"
+  "title": "Payments",
+  "icon": "Send",
+  "pages": [
+    "listPayments",
+    "getPaymentById",
+    "createSepaCreditTransfer",
+    "Webhooks"
+  ]
 }

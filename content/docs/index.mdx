@@ -6,9 +6,12 @@ icon: BookOpen
 
 ## Introduction
 
-PaySaxas is a Banking-as-a-Service (BaaS) platform that enables fintechs, EMIs, PSPs, and digital businesses to build and launch financial products using a secure, modular infrastructure. The API lets clients onboard customers, open and manage accounts, move money, and automate operational or compliance workflows.
+PaySaxas is a Banking-as-a-Service (BaaS) platform that enables Fintechs, CASPs/VASPs, PSPs and digital businesses to build and launch financial
+products using a secure, modular infrastructure. Through the PaySaxas API, clients can onboard customers, open and manage accounts, send and
+receive payments, and automate operational and compliance workflows.
 
-The platform centres around a few core building blocks — customers, accounts, payments, and event notifications — so you can embed financial functionality directly into your product.
+The API provides access to several core entities — customers, accounts, payments, transactions, and event notifications — allowing businesses to
+integrate financial functionality directly into their own products and services.
 
 ## Core Use Cases
 - Onboard individual or business customers through a secure, API-driven flow.
@@ -18,17 +21,8 @@ The platform centres around a few core building blocks — customers, accounts, 
 - Retrieve balances and transaction history programmatically.
 
 ## Key Entities
-- **Customer** — an onboarded individual or company operating under your programme.
-- **Account** — a ledger account tied to a customer, with balances, statements, and virtual identifiers.
-- **Payment** — an outgoing or incoming transaction processed through supported payment rails.
-
-## Typical Flow
-1. Authenticate using OAuth 2.1 client credentials.
-2. Send a request to the relevant PaySaxas endpoint.
-3. Process the synchronous response.
-4. Listen for webhooks that confirm status changes.
-
-## Next Steps
-- Follow the Quickstart guide to obtain credentials and issue your first API requests.
-- Explore the Accounts, Payments, and Confirmation sections for detailed workflows.
-- Review the OpenAPI reference for full endpoint definitions.
+- **Customer** — represents an onboarded individual or company within the system.
+- **Account** — financial account associated with a customer, identified by a unique account reference.
+- **Payment (Payment Order)** — an instruction issued by a payer to transfer a specified amount of money to a payee.
+- **Transaction** — a completed movement of funds, representing a fully executed payment order once settled within the network.
+- **Event notification** — asynchronous update sent to client systems to reflect changes in entity status (for example, when a payment is completed or fails).

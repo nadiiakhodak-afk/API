@@ -9,18 +9,38 @@ import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/mdx-components';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
+import React from "react";
+import type { MDXComponents } from 'mdx/types';
+
+type TocProp = React.ComponentProps<typeof DocsPage>['toc'];
+type MDXContent = (props: { components?: MDXComponents }) => React.ReactElement;
 
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params;
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
-  const MDX = page.data.body;
+  type MDXPageData = {
+    body: MDXContent;
+    toc?: TocProp;
+    full?: boolean;
+    title: string;
+    description?: string;
+  };
+
+  const data = page.data as Partial<MDXPageData>;
+
+  if (!data.body) {
+    notFound();
+  }
+
+  const MDX = data.body as MDXContent;
+  const toc = (data.toc ?? undefined) as TocProp;
 
   return (
-    <DocsPage toc={page.data.toc} full={page.data.full}>
-      <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription>{page.data.description}</DocsDescription>
+    <DocsPage toc={toc} full={data.full}>
+      <DocsTitle>{data.title}</DocsTitle>
+      <DocsDescription>{data.description}</DocsDescription>
       <DocsBody>
         <MDX
           components={getMDXComponents({

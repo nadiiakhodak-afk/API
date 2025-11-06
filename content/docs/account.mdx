@@ -1,12 +1,12 @@
 ---
 title: Accounts
 description: Account lifecycle, statuses, and vIBAN operations
-icon: Banknote
+icon: Wallet
 ---
 
 Management of customer accounts.
 
-Each Account represents an internal ledger object linked to a verified Customer (either Individual or Business).
+Each **Account** represents an internal ledger object linked to a verified **Customer** (either Individual or Business).
 Accounts are used to hold balances, process payments, and manage compliance-related activity within the PaySaxas ecosystem.
 
 #### Definition
@@ -19,7 +19,7 @@ Accounts are used to hold balances, process payments, and manage compliance-rela
 
 Relationship:
 
-- One Customer many Accounts (1:N relationship).
+- One **Customer** many **Accounts** (1:N relationship).
 - An account cannot exist without a verified customer.
 - Account identifiers are immutable once created.
 
@@ -27,20 +27,22 @@ Relationship:
 
 Process for account creation, validation, and lifecycle management.
 
-| Method | Endpoint         | Description                                                                                     |
-|--------|------------------|-------------------------------------------------------------------------------------------------|
-| POST   | /accounts        | Creates a new account for a verified customer.                                                  |
-| GET    | /accounts        | Retrieves a list of all accounts associated with the verified customer.                         |
-| GET    | `/accounts/{id}` | Retrieves detailed information about a specific account (currency, balances, status, metadata). |
+| Method | Endpoint                                               | Description                                                                                     |
+|--------|--------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| POST   | [`/accounts`](../OpenAPI/accounts/issueNewIban)        | Creates a new account for a verified customer.                                                  |
+| GET    | [`/accounts`](../OpenAPI/accounts/listAccounts)        | Retrieves a list of all accounts associated with the verified customer.                         |
+| GET    | [`/accounts/{id}`](../OpenAPI/accounts/getAccountById) | Retrieves detailed information about a specific account (currency, balances, status, metadata). |
 
 #### Lifecycle & Status Flow
 
-| Status   | Description / Trigger                                                                           |
-|----------|-------------------------------------------------------------------------------------------------|
-| Inactive | Initial placeholder — account record created but not yet reserved or active.                    |
-| Reserved | Account structure reserved (currency assigned, ledger entry prepared). Awaiting KYC completion. |
-| Active   | Account verified and fully operational. Customer can send and receive payments.                 |
-| Closed   | Account manually closed due to offboarding, inactivity, or compliance decision.                 |
+| Status   | Description / Trigger                                                                                                                 |
+|----------|---------------------------------------------------------------------------------------------------------------------------------------|
+| Inactive | Initial placeholder — account record created but not yet reserved or active. Used for pre-activation or incomplete onboarding.        |
+| Reserved | Account structure reserved; currency assigned, and ledger entry prepared. Awaiting KYC/KYB completion and internal compliance review. |
+| Active   | Account verified and fully operational. The client (Business or Individual) can send and receive payments.                            |
+| Closed   | Account manually closed due to offboarding, inactivity, compliance decision, or business termination.                                 |
+
+Closing Path: Active → Closed (manual)
 
 #### Account Creation Flow
 
@@ -77,19 +79,19 @@ To successfully create an account:
 | metadata     | object | optional | Custom parameters for internal use.           |
 #### Status Lifecycle Summary
 
-| Phase       | Statuses Included | Notes                                        |
-|-------------|-------------------|----------------------------------------------|
-| Setup       | Void Reserved     | Account structure created and validated.     |
-| Operational | Active            | Account is ready for payments and reporting. |
-| Termination | Closed            | Manual deactivation or offboarding.          |
-#### vIBANs
+| Phase       | Statuses Included | Notes                                                                  |
+|-------------|-------------------|------------------------------------------------------------------------|
+| Setup       | Inactive Reserved | Account record created and validated, awaiting verification.           |
+| Operational | Active            | Account is fully verified and ready for payments and reporting.        |
+| Termination | Closed            | Manual deactivation or offboarding triggered by compliance or support. |
+#### IBANs
 
-Operations for issuing and managing virtual IBANs linked to an account.
+Operations for issuing and managing IBANs linked to an account.
 
-| Method | Endpoint               | Description                                                |
-|--------|------------------------|------------------------------------------------------------|
-| POST   | `/accounts/{id}/ibans` | Issues a new virtual IBAN linked to the specified account. |
-| GET    | `/accounts/{id}/ibans` | Returns all virtual IBANs associated with the account.     |
+| Method | Endpoint                                                         | Description                                        |
+|--------|------------------------------------------------------------------|----------------------------------------------------|
+| POST   | [`/accounts/{id}/ibans`](../OpenAPI/accounts/issueNewIban)       | Issues a new IBAN linked to the specified account. |
+| GET    | [`/accounts/{id}/ibans`](../OpenAPI/accounts/listIbansByAccount) | Returns all IBANs associated with the account.     |
 
 IBANs are used to enable both incoming and outgoing payments for customer accounts.
 Each issued IBAN is uniquely linked to an account and can be used to receive SEPA transfers or initiate outgoing payments under the same customer
@@ -109,7 +111,7 @@ Example payloads demonstrate both successful issuance and potential error cases,
 
 ```json
 {
-"iban": "DE00PAY0000000000",
+"iban": "FI2112345600000785",
 "bic": "PAYSA0XXX",
 "currency": "EUR",
 "status": "active",
@@ -119,3 +121,6 @@ Example payloads demonstrate both successful issuance and potential error cases,
 
 > IBAN and BIC are examples only — not real financial identifiers.
 ### Webhooks (Account events)
+
+[See the OpenAPI webhook definition →](../OpenAPI/accounts/Webhooks)
+

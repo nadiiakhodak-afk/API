@@ -6,469 +6,2675 @@ info:
         Специфікація складена з офіційної сторінки PaySaxas OpenAPI.
         Базова структура: https://mb5openapi.{hostname}/{version}/{type}/{command}
         Усі методи — POST з JSON у тілі. Формат дат: YYYYMMDD.
+        Опис охоплює ключові домени:
+          * Customers — створення, пошук, перегляд та вебхуки життєвого циклу клієнтів.
+          * Accounts & IBANs — керування рахунками, пов’язаними IBAN та подіями вебхуків.
+          * Transactions — операції та їх події, включаючи статуси обробки та розрахунку.
+          * Webhooks — єдина модель підписів, заголовків безпеки та політик повторної доставки.
 servers:
-    - url: https://mb5openapi.{hostname}/{version}
-      variables:
-          hostname:
-              default: example.com
-              description: Домен ASPSP
-          version:
-              default: v100
-              description: Версія API у форматі vxxx
+    -
+        url: https://mb5openapi.{hostname}/{version}
+        variables:
+            hostname:
+                default: example.com
+                description: Домен ASPSP
+            version:
+                default: v100
+                description: Версія API у форматі vxxx
 security:
-    - bearerAuth: []
+    -
+        bearerAuth: [ ]
+tags:
+    -
+        name: Accounts
+        description: Operations for managing accounts, IBANs, and related webhooks.
+    -
+        name: Customers
+        description: Customer lifecycle, metadata, and customer webhooks.
+    -
+        name: Transactions
+        description: Transaction retrieval and transaction webhook notifications.
 components:
+    parameters:
+        CustomerId:
+            name: id
+            in: path
+            required: true
+            description: Unique PaySaxas customer identifier.
+            schema:
+                type: string
+                example: cust_123456789
+        AccountsXEventHeader:
+            name: X-Event
+            in: header
+            required: true
+            description: Event type for account and IBAN webhook deliveries.
+            schema:
+                type: string
+                example: account.created
+        TransactionsXEventHeader:
+            name: X-Event
+            in: header
+            required: true
+            description: Event type for transaction webhook deliveries.
+            schema:
+                type: string
+                example: transaction.completed
+        CustomersXEventHeader:
+            name: X-Event
+            in: header
+            required: true
+            description: Identifies the customer webhook event type.
+            schema:
+                type: string
+                enum: [ customer.created, customer.status.changed, customer.suspended ]
+                example: customer.created
+        XSignatureHeader:
+            name: X-Signature
+            in: header
+            required: true
+            description: HMAC SHA-256 signature of the raw webhook body using the shared secret.
+            schema:
+                type: string
+                example: sha256=f28b1e7c4df9...
+        XRequestIdHeader:
+            name: X-Request-Id
+            in: header
+            required: true
+            description: UUIDv4 identifier used for deduplication and idempotency.
+            schema:
+                type: string
+                example: req_9a7c4e2f
+        DateHeader:
+            name: Date
+            in: header
+            required: true
+            description: UTC timestamp for replay protection (reject skew greater than five minutes).
+            schema:
+                type: string
+                example: Wed, 05 Nov 2025 12:45:30 GMT
+        JsonContentTypeHeader:
+            name: Content-Type
+            in: header
+            required: true
+            description: Payload media type, always `application/json`.
+            schema:
+                type: string
+                example: application/json
     securitySchemes:
         bearerAuth:
             type: http
             scheme: bearer
             bearerFormat: JWT
-        mutualTLS:
-            type: mutualTLS
+        HMACSignature:
+            type: apiKey
+            in: header
+            name: X-Signature
     schemas:
-        EmptyObject:
+        WebhookPayload:
+            type: object
+            properties:
+                id:
+                    type: string
+                    description: Transaction identifier.
+                    example: txn_00231a
+            required:
+                - id
+        TransactionsListResponse:
+            type: object
+            properties:
+                data:
+                    type: array
+                    description: List of transaction objects.
+                    items:
+                        $ref: '#/components/schemas/Transaction'
+                pagination:
+                    type: object
+                    properties:
+                        next_cursor:
+                            type: string
+                            nullable: true
+                            description: Cursor for the next page. If omitted or `null`, there are no more results.
+            required:
+                - data
+                - pagination
+        Transaction:
+            type: object
+            properties:
+                id:
+                    type: string
+                    description: Unique transaction identifier.
+                    example: txn_345ab9
+                account_id:
+                    type: string
+                    description: Linked account ID.
+                    example: acc_782b4f
+                type:
+                    type: string
+                    description: Transaction direction — `incoming` or `outgoing`.
+                    enum: [ incoming, outgoing ]
+                    example: incoming
+                amount:
+                    type: number
+                    format: float
+                    description: Transaction amount in EUR.
+                    example: 2500.00
+                currency:
+                    type: string
+                    description: Always "EUR".
+                    example: EUR
+                status:
+                    type: string
+                    description: Unified lifecycle status.
+                    enum: [ pending, processing, completed, failed, returned ]
+                    example: completed
+                reference:
+                    type: string
+                    description: External or internal reference.
+                    example: INV-2025-0032
+                created_at:
+                    type: string
+                    format: date-time
+                    description: Timestamp of creation (ISO 8601, UTC).
+                    example: 2025-01-15T10:15:00Z
+            required:
+                - id
+                - account_id
+                - type
+                - amount
+                - currency
+                - status
+                - created_at
+        WebhookMinimalPayload:
             type: object
             additionalProperties: false
-            description: Порожній об'єкт (ендпоінт без параметрів)
-        AccountSummary:
+            properties:
+                id:
+                    type: string
+                    description: ID of the affected entity (payment or transaction).
+                    example: obj_123456
+            required: [ id ]
+        Beneficiary:
             type: object
             properties:
-                id: { type: integer }
-                designation: { type: string, description: "Account number або IBAN" }
-                description: { type: string }
-                currency: { type: string, description: "ISO 4217, напр. USD, EUR" }
-                currency_code: { type: integer, description: "Внутрішній код валюти" }
-                active: { type: boolean }
-                blockdebit: { type: boolean }
-                blockcredit: { type: boolean }
-                closed: { type: boolean }
-            required: [id, designation, currency]
-        AccountDetails:
+                name:
+                    type: string
+                    description: Beneficiary legal name.
+                    example: John Doe
+                iban:
+                    type: string
+                    description: Beneficiary IBAN (Finnish IBAN used in examples).
+                    example: FI1350001540000056
+                iban_status:
+                    type: string
+                    description: IBAN lifecycle status.
+                    enum: [ active, reserved, closed ]
+                    example: active
+            required:
+                - name
+                - iban
+                - iban_status
+        Payment:
             type: object
             properties:
-                accountid: { type: integer }
-                designation: { type: string }
-                currency: { type: string }
-                currency_code: { type: string }
-                balance: { type: number }
-                plan_balance: { type: number }
-                balancebc: { type: number }
-                thedate: { type: string, pattern: "^[0-9]{8}$" }
-                available_amount: { type: number }
-                overdraft_amount: { type: number }
-                overdraft_limit: { type: number }
-                balance_ib: { type: number }
-                favorite: { type: boolean }
-                customdescription: { type: string, nullable: true }
-            required: [accountid, designation, currency]
-        StatementItem:
-            type: object
-            properties:
-                "#idnty": { type: integer }
-                "#transactionid": { type: integer }
-                thedate: { type: string, pattern: "^[0-9]{8}$" }
-                designation: { type: string }
-                description: { type: string }
-                currcodechr: { type: string }
-                amtdebit: { type: number, nullable: true }
-                amtcredit: { type: number, nullable: true }
-                "#amtdebitbc": { type: number, nullable: true }
-                "#amtcreditbc": { type: number, nullable: true }
-                amount: { type: number }
-                "#amountbc": { type: number }
-                balance: { type: number }
-                "#balancebc": { type: number }
-                docnumber: { type: integer }
-                src: { type: string }
-                info: { type: string }
-                reference: { type: string }
-                "#completed": { type: integer, description: "0 — віртуальна, 1 — реальна" }
-                "#revaluation": { type: integer }
-                documentid: { type: integer }
-                "#auser": { type: string }
-                "#key": { type: integer }
-        TransactionDetails:
-            allOf:
-                - $ref: "#/components/schemas/StatementItem"
-        ConsentStatus:
-            type: object
-            properties:
+                id:
+                    type: string
+                    description: Unique payment identifier.
+                    example: pay_84910d
+                debtor_account_id:
+                    type: string
+                    description: Debited PaySaxas account ID.
+                    example: acc_72b24f
+                amount:
+                    type: number
+                    format: float
+                    description: Payment amount in EUR.
+                    example: 2500.00
+                currency:
+                    type: string
+                    description: Always "EUR".
+                    example: EUR
+                beneficiary:
+                    $ref: '#/components/schemas/Beneficiary'
+                reference:
+                    type: string
+                    description: Payment reference or remittance information.
+                    example: Invoice #3842
                 status:
-                    type: integer
-                    description: "0 — немає згоди, 1 — згода надана"
-            required: [status]
-        OperationResult:
-            type: object
-            properties:
-                result:
-                    type: integer
-                    description: "0 — невдача, 1 — успіх"
-            required: [result]
-        CreatePaymentRequest:
-            type: object
-            properties:
-                documenttype:
                     type: string
-                    enum: [Outgoing_Payment_FReq, Outgoing_SEPAPAY_FReq]
+                    description: Unified lifecycle status.
+                    enum: [ pending, processing, completed, failed, returned ]
+                    example: completed
+                created_at:
+                    type: string
+                    format: date-time
+                    description: Timestamp of creation (ISO 8601, UTC).
+                    example: 2025-01-15T09:30:00Z
+                updated_at:
+                    type: string
+                    format: date-time
+                    description: Timestamp of last status change (ISO 8601, UTC).
+                    example: 2025-01-15T10:02:00Z
+            required:
+                - id
+                - debtor_account_id
+                - amount
+                - currency
+                - beneficiary
+                - status
+                - created_at
+                - updated_at
+        PaymentsListResponse:
+            type: object
+            properties:
                 data:
-                    oneOf:
-                        - $ref: "#/components/schemas/SwiftPaymentData"
-                        - $ref: "#/components/schemas/SepaPaymentData"
-            required: [documenttype, data]
-        SwiftPaymentData:
-            type: object
-            properties:
-                debitaccountid: { type: integer }
-                amount: { type: number }
-                currencyid: { type: integer }
-                info: { type: string }
-                extaccountnumber: { type: string }
-                benefname: { type: string }
-                registrationnumber: { type: string }
-                benefcountry: { type: integer, description: "ISO 3166-1 alpha-2 як код країни (внутр. представлення)" }
-                benefaddress: { type: string }
-                tariffamount: { type: number }
-                totalamount: { type: number }
-                chargestype: { type: integer }
-                prioritet: { type: integer }
-                extbankswift: { type: string }
-                extbankname: { type: string }
-                extbenefbankcountry: { type: integer }
-                extbankaddress: { type: string }
-            required: [debitaccountid, amount, currencyid, extaccountnumber, benefname]
-        SepaPaymentData:
-            type: object
-            properties:
-                debitaccountid: { type: integer }
-                amount: { type: number }
-                currencyid: { type: integer }
-                info: { type: string }
-                extaccountnumber: { type: string }
-                benefname: { type: string }
-                registrationnumber: { type: string }
-                benefcountry: { type: integer }
-                external_account: { type: string }
-                benefaddress: { type: string }
-                extbankswift: { type: string }
-                extbankname: { type: string }
-                extbenefbankcountry: { type: integer }
-                extbankaddress: { type: string }
-            required: [debitaccountid, amount, currencyid, extaccountnumber, benefname]
-        CreatePaymentResponse:
-            type: object
-            properties:
-                result: { type: integer, description: "0 — не створено, 1 — створено" }
-                fieldErrors:
                     type: array
+                    description: List of payment objects.
                     items:
-                        type: object
-                        additionalProperties: true
-                message: { type: string }
-                objectid: { type: integer, description: "ID створеного платежу" }
-            required: [result]
-        PaymentListItem:
+                        $ref: '#/components/schemas/Payment'
+
+                pagination:
+                    type: object
+                    properties:
+                        next_cursor:
+                            type: string
+                            nullable: true
+                            description: Cursor for the next page. If omitted or `null`, no additional pages are available.
+            required:
+                - data
+                - pagination
+        Customer:
             type: object
+            description: Full customer representation with immutable lifecycle fields.
             properties:
-                paymentid: { type: integer }
-                documenttype:
+                id:
                     type: string
-                    enum: [Outgoing_Payment_FReq, Outgoing_SEPAPAY_FReq]
-                data:
-                    oneOf:
-                        - $ref: "#/components/schemas/SwiftPaymentData"
-                        - $ref: "#/components/schemas/SepaPaymentData"
-                thedate: { type: string, pattern: "^[0-9]{8}$" }
-                statusdescription: { type: string }
-        CheckFundsRequest:
+                    description: Unique PaySaxas customer identifier.
+                    example: cust_123456789
+                type:
+                    type: string
+                    description: Customer type classification.
+                    enum: [ individual, business ]
+                    example: individual
+                reference_id:
+                    type: string
+                    description: External partner or CRM reference supplied by integrators.
+                    example: ext-12345
+                email:
+                    type: string
+                    format: email
+                    description: Customer contact email.
+                    example: ops@acme.example
+                status:
+                    type: string
+                    description: Customer lifecycle status.
+                    enum: [ inactive, reserved, pre_registration, active, closed ]
+                    example: active
+                country:
+                    type: string
+                    description: ISO 3166-1 alpha-2 country code when available.
+                    example: DE
+                created_at:
+                    type: string
+                    format: date-time
+                    description: Timestamp when the customer record was created (ISO 8601, UTC).
+                    example: "2025-10-21T08:00:00Z"
+                updated_at:
+                    type: string
+                    format: date-time
+                    description: Timestamp of the latest modification (ISO 8601, UTC).
+                    example: "2025-10-23T11:45:00Z"
+                metadata:
+                    $ref: '#/components/schemas/CustomerMetadata'
+            required: [ id, type, status, created_at, updated_at, metadata ]
+        CustomerSummary:
+            type: object
+            description: Lightweight customer projection returned by list endpoints.
+            properties:
+                id:
+                    type: string
+                    description: Unique PaySaxas customer identifier.
+                    example: cust_123456789
+                type:
+                    type: string
+                    enum: [ individual, business ]
+                    description: Customer type classification.
+                    example: business
+                status:
+                    type: string
+                    enum: [ inactive, reserved, active, closed ]
+                    description: Current lifecycle status.
+                    example: active
+                country:
+                    type: string
+                    description: ISO 3166-1 alpha-2 country code.
+                    example: DE
+                created_at:
+                    type: string
+                    format: date-time
+                    description: Creation timestamp (ISO 8601, UTC).
+                    example: "2025-10-21T08:00:00Z"
+                updated_at:
+                    type: string
+                    format: date-time
+                    description: Last modification timestamp (ISO 8601, UTC).
+                    example: "2025-10-23T11:45:00Z"
+            required: [ id, type, status, created_at, updated_at ]
+        CustomerMetadata:
+            type: object
+            description: Non-sensitive metadata used for CRM reconciliation.
+            properties:
+                created_by:
+                    type: string
+                    description: Source system that initiated or last updated the customer.
+                    example: partner-portal-url
+                client_reference:
+                    type: string
+                    description: Optional client-side reference linking internal systems.
+                    example: crm-7890
+            additionalProperties: false
+        CustomerListResponse:
             type: object
             properties:
-                account: { type: string, description: "Account number або IBAN" }
-                amount: { type: string }
-                currency: { type: string, description: "ISO 4217" }
-            required: [account, amount, currency]
-    responses:
-        CommonErrors:
-            description: Типові коди помилок
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        additionalProperties: true
-            headers: {}
+                data:
+                    type: array
+                    description: Customers included in the current page.
+                    items:
+                        $ref: '#/components/schemas/CustomerSummary'
+                pagination:
+                    $ref: '#/components/schemas/Pagination'
+            required: [ data, pagination ]
+        Pagination:
+            type: object
+            description: Cursor-based pagination metadata.
+            properties:
+                next_cursor:
+                    type: string
+                    description: Token to retrieve the next page of results.
+                    example: eyJwYWdlIjoyfQ==
+                limit:
+                    type: integer
+                    description: Number of results requested per page.
+                    example: 20
+            required: [ limit ]
+        CustomerCreateRequest:
+            type: object
+            required: [ type, email ]
+            properties:
+                type:
+                    type: string
+                    enum: [ individual, business ]
+                    description: Customer type.
+                    example: business
+                email:
+                    type: string
+                    format: email
+                    description: Unique email address used for registration and communication.
+                    example: ops@acme.example
+                reference_id:
+                    type: string
+                    description: External partner reference such as a CRM or affiliate identifier.
+                    example: ext-ACME001
+                metadata:
+                    $ref: '#/components/schemas/CustomerMetadata'
+        CustomerMetadataUpdateRequest:
+            type: object
+            required: [ metadata ]
+            properties:
+                metadata:
+                    $ref: '#/components/schemas/CustomerMetadata'
+        WebhookIdentifierPayload:
+            type: object
+            description: Minimal webhook payload containing the related entity identifier.
+            properties:
+                id:
+                    type: string
+                    description: Unique identifier of the entity referenced by the webhook.
+                    example: cust_123456789
+            required: [ id ]
+        ErrorResponse:
+            type: object
+            properties:
+                error_name:
+                    type: string
+                    description: Machine readable error name.
+                    example: Validation Error
+                error_description:
+                    type: string
+                    description: Human readable error detail.
+                    example: Invalid status filter.
+                metadata:
+                    type: object
+                    description: Diagnostic metadata accompanying the error.
+                    properties:
+                        trace_id:
+                            type: string
+                            description: Unique trace identifier for debugging purposes.
+                            example: abc123
+                    required: [ trace_id ]
+            required: [ error_name, error_description ]
 paths:
-    /accounts/getaccounts:
-        post:
-            summary: Отримати список рахунків PSU
-            tags: [Accounts]
-            requestBody:
-                required: false
-                content:
-                    application/json:
-                        schema: { $ref: "#/components/schemas/EmptyObject" }
+    /customers/{id}:
+        get:
+            summary: Retrieve Customer Details
+            description: >
+                Retrieves the full details of a specific customer by ID, including lifecycle stage,
+                verification status, and metadata.  
+                This endpoint is **read-only** — it does not allow modifications to customer data or lifecycle state.  
+                Lifecycle transitions depend on internal onboarding flow and compliance checks.
+            operationId: getCustomerById
+            tags:
+                - Customers
+            parameters:
+                -
+                    name: id
+                    in: path
+                    required: true
+                    description: Unique PaySaxas customer identifier.
+                    schema:
+                        type: string
+                        example: cust_123456789
+            security:
+                -
+                    bearerAuth: [ ]
             responses:
                 "200":
-                    description: Список рахунків
+                    description: Successful response with customer details.
                     content:
                         application/json:
                             schema:
-                                type: array
-                                items: { $ref: "#/components/schemas/AccountSummary" }
-                "400": { $ref: "#/components/responses/CommonErrors" }
-                "401": { $ref: "#/components/responses/CommonErrors" }
-                "403": { $ref: "#/components/responses/CommonErrors" }
-                "405": { $ref: "#/components/responses/CommonErrors" }
-                "415": { $ref: "#/components/responses/CommonErrors" }
-                "422": { $ref: "#/components/responses/CommonErrors" }
-                "429": { $ref: "#/components/responses/CommonErrors" }
-                "500": { $ref: "#/components/responses/CommonErrors" }
-                "501": { $ref: "#/components/responses/CommonErrors" }
-                "503": { $ref: "#/components/responses/CommonErrors" }
-    /accounts/getaccount:
-        post:
-            summary: Деталі одного рахунку
-            tags: [Accounts]
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            type: object
-                            properties:
-                                account: { type: string }
-                                currency: { type: string }
-                            required: [account, currency]
-            responses:
-                "200":
-                    description: Деталі рахунку
-                    content:
-                        application/json:
-                            schema: { $ref: "#/components/schemas/AccountDetails" }
-                "400": { $ref: "#/components/responses/CommonErrors" }
-                "401": { $ref: "#/components/responses/CommonErrors" }
-                "403": { $ref: "#/components/responses/CommonErrors" }
-                "405": { $ref: "#/components/responses/CommonErrors" }
-                "415": { $ref: "#/components/responses/CommonErrors" }
-                "422": { $ref: "#/components/responses/CommonErrors" }
-                "429": { $ref: "#/components/responses/CommonErrors" }
-                "500": { $ref: "#/components/responses/CommonErrors" }
-                "501": { $ref: "#/components/responses/CommonErrors" }
-                "503": { $ref: "#/components/responses/CommonErrors" }
-    /accounts/getstatement:
-        post:
-            summary: Виписка за період
-            tags: [Accounts]
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            type: object
-                            properties:
-                                account: { type: string }
-                                beginDate: { type: string, pattern: "^[0-9]{8}$" }
-                                endDate: { type: string, pattern: "^[0-9]{8}$" }
-                            required: [account, beginDate, endDate]
-            responses:
-                "200":
-                    description: Масив транзакцій
+                                type: object
+                                properties:
+                                    type:
+                                        type: string
+                                        enum: [ individual, business ]
+                                        description: Defines customer type.
+                                        example: individual
+                                    reference_id:
+                                        type: string
+                                        description: External reference from partner system.
+                                        example: ext-12345
+                                    status:
+                                        type: string
+                                        description: >
+                                            lifecycle status: inactive, reserved, active, closed.
+                                        enum: [ inactive, reserved, active, closed ]
+                                        example: active
+                                    created_at:
+                                        type: string
+                                        format: date-time
+                                        example: "2025-10-21T08:00:00Z"
+                                    updated_at:
+                                        type: string
+                                        format: date-time
+                                        example: "2025-10-23T11:45:00Z"
+                                    metadata:
+                                        type: object
+                                        description:  non-sensitive internal data.
+                                        properties:
+                                            created_by:
+                                                type: string
+                                                description: Source system where customer was initially registered.
+                                                example: partner-portal-url
+                "400":
+                    description: Validation Error — the provided ID does not match the expected pattern.
                     content:
                         application/json:
                             schema:
-                                type: array
-                                items: { $ref: "#/components/schemas/StatementItem" }
-                "400": { $ref: "#/components/responses/CommonErrors" }
-                "401": { $ref: "#/components/responses/CommonErrors" }
-                "403": { $ref: "#/components/responses/CommonErrors" }
-                "405": { $ref: "#/components/responses/CommonErrors" }
-                "415": { $ref: "#/components/responses/CommonErrors" }
-                "422": { $ref: "#/components/responses/CommonErrors" }
-                "429": { $ref: "#/components/responses/CommonErrors" }
-                "500": { $ref: "#/components/responses/CommonErrors" }
-                "501": { $ref: "#/components/responses/CommonErrors" }
-                "503": { $ref: "#/components/responses/CommonErrors" }
-    /accounts/gettransaction:
-        post:
-            summary: Деталі конкретної транзакції
-            tags: [Accounts]
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Validation Error
+                                    error_description:
+                                        type: string
+                                        example: Invalid customer ID format.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                description: Unique internal trace identifier for debugging.
+                                                example: abc123
+                "401":
+                    description: Unauthorized — authentication token missing or expired.
+                "403":
+                    description: Insufficient Permissions — token lacks required access scope.
+                "404":
+                    description: Customer Not Found — no customer with the given ID exists or has been deleted.
+        patch:
+            summary: Update Customer Metadata
+            description: >
+                Updates the `metadata` object for a specific customer.  
+                This endpoint does **not** change lifecycle `status`, onboarding stage, or any personal/KYC/KYB data.  
+                The response mirrors the canonical customer shape used by POST /customers.
+            operationId: updateCustomerMetadata
+            tags:
+                - Customers
+            security:
+                -
+                    bearerAuth: [ ]
+            parameters:
+                -
+                    name: id
+                    in: path
+                    required: true
+                    description: Unique PaySaxas customer ID.
+                    schema:
+                        type: string
+                        example: cust_123456789
             requestBody:
                 required: true
                 content:
                     application/json:
                         schema:
                             type: object
+                            required:
+                                - metadata
                             properties:
-                                account: { type: string }
-                                transactionid: { type: integer }
-                            required: [account, transactionid]
+                                metadata:
+                                    type: object
+                                    description: >
+                                        Non-sensitive internal metadata.  
+                                        **Only** the keys listed below are accepted for updates to keep parity with POST /customers.
+                                    properties:
+                                        created_by:
+                                            type: string
+                                            description: Source system that initiated or updated the registration.
+                                            example: partner-portal-url
+                                        client_reference:
+                                            type: string
+                                            description: Optional client-side reference for linking internal systems.
+                                            example: crm-7890
+                                    additionalProperties: false
             responses:
                 "200":
-                    description: Деталі транзакції
-                    content:
-                        application/json:
-                            schema: { $ref: "#/components/schemas/TransactionDetails" }
-                "400": { $ref: "#/components/responses/CommonErrors" }
-                "401": { $ref: "#/components/responses/CommonErrors" }
-                "403": { $ref: "#/components/responses/CommonErrors" }
-                "405": { $ref: "#/components/responses/CommonErrors" }
-                "415": { $ref: "#/components/responses/CommonErrors" }
-                "422": { $ref: "#/components/responses/CommonErrors" }
-                "429": { $ref: "#/components/responses/CommonErrors" }
-                "500": { $ref: "#/components/responses/CommonErrors" }
-                "501": { $ref: "#/components/responses/CommonErrors" }
-                "503": { $ref: "#/components/responses/CommonErrors" }
-    /accounts/checkconsent:
-        post:
-            summary: Перевірити наявність згоди PSU
-            tags: [Accounts]
-            requestBody:
-                required: false
-                content:
-                    application/json:
-                        schema: { $ref: "#/components/schemas/EmptyObject" }
-            responses:
-                "200":
-                    description: Статус згоди
-                    content:
-                        application/json:
-                            schema: { $ref: "#/components/schemas/ConsentStatus" }
-                "400": { $ref: "#/components/responses/CommonErrors" }
-                "401": { $ref: "#/components/responses/CommonErrors" }
-                "403": { $ref: "#/components/responses/CommonErrors" }
-    /accounts/deleteconsent:
-        post:
-            summary: Видалити згоду PSU
-            tags: [Accounts]
-            requestBody:
-                required: false
-                content:
-                    application/json:
-                        schema: { $ref: "#/components/schemas/EmptyObject" }
-            responses:
-                "200":
-                    description: Результат видалення
-                    content:
-                        application/json:
-                            schema: { $ref: "#/components/schemas/OperationResult" }
-                "400": { $ref: "#/components/responses/CommonErrors" }
-                "401": { $ref: "#/components/responses/CommonErrors" }
-                "403": { $ref: "#/components/responses/CommonErrors" }
-    /payments/createpayment:
-        post:
-            summary: Створити платіж (SWIFT або SEPA)
-            tags: [Payments]
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema: { $ref: "#/components/schemas/CreatePaymentRequest" }
-            responses:
-                "200":
-                    description: Результат створення
-                    content:
-                        application/json:
-                            schema: { $ref: "#/components/schemas/CreatePaymentResponse" }
-                "400": { $ref: "#/components/responses/CommonErrors" }
-                "401": { $ref: "#/components/responses/CommonErrors" }
-                "403": { $ref: "#/components/responses/CommonErrors" }
-                "422": { $ref: "#/components/responses/CommonErrors" }
-    /payments/getpayments:
-        post:
-            summary: Отримати список платежів за період
-            tags: [Payments]
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            type: object
-                            properties:
-                                account: { type: string }
-                                beginDate: { type: string, pattern: "^[0-9]{8}$" }
-                                endDate: { type: string, pattern: "^[0-9]{8}$" }
-                            required: [account, beginDate, endDate]
-            responses:
-                "200":
-                    description: Масив платежів
+                    description: Customer metadata successfully updated.
                     content:
                         application/json:
                             schema:
-                                type: array
-                                items: { $ref: "#/components/schemas/PaymentListItem" }
-                "400": { $ref: "#/components/responses/CommonErrors" }
-                "401": { $ref: "#/components/responses/CommonErrors" }
-                "403": { $ref: "#/components/responses/CommonErrors" }
-    /payments/getpayment:
-        post:
-            summary: Деталі конкретного платежу
-            tags: [Payments]
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            type: object
-                            properties:
-                                paymentID: { type: integer }
-                            required: [paymentID]
+                                type: object
+                                properties:
+                                    id:
+                                        type: string
+                                        description: Unique PaySaxas customer identifier.
+                                        example: cust_123456789
+                                    type:
+                                        type: string
+                                        enum: [ individual, business ]
+                                        description: Customer type.
+                                        example: business
+                                    reference_id:
+                                        type: string
+                                        description: External partner or CRM reference.
+                                        example: ext-ACME001
+                                    email:
+                                        type: string
+                                        format: email
+                                        description: Customer email.
+                                        example: ops@acme.example
+                                    status:
+                                        type: string
+                                        description: Lifecycle stage.
+                                        example: pre_registration
+                                    created_at:
+                                        type: string
+                                        format: date-time
+                                        description: Creation timestamp (ISO 8601, UTC).
+                                        example: "2025-10-21T08:00:00Z"
+                                    updated_at:
+                                        type: string
+                                        format: date-time
+                                        description: Timestamp of the latest update (ISO 8601, UTC).
+                                        example: "2025-10-24T12:45:00Z"
+                                    metadata:
+                                        type: object
+                                        description: Latest metadata after the update.
+                                        properties:
+                                            created_by:
+                                                type: string
+                                                example: partner-portal-url
+                                            client_reference:
+                                                type: string
+                                                example: crm-7890
+                "400":
+                    description: Validation Error — invalid body or forbidden fields provided.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Validation Error
+                                    error_description:
+                                        type: string
+                                        example: Invalid metadata structure.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: abc123
+                "401":
+                    description: Unauthorized — authentication token missing or expired.
+                "403":
+                    description: Insufficient Permissions — token lacks required access scope.
+                "404":
+                    description: Customer Not Found — no customer with the given ID exists.
+                "409":
+                    description: Conflict — concurrent update detected; retry with the latest state.
+    /customers:
+        get:
+            summary: List / Search Customers
+            description: >
+                Returns a paginated list of customers.  
+                Use this endpoint to view active or pending customers, monitor onboarding progress, or build CRM/back-office dashboards.  
+                Returned objects are **simplified** — for full details, use **GET /customers/\{id\}**.
+            operationId: listCustomers
+            tags:
+                - Customers
+            parameters:
+                -
+                    name: cursor
+                    in: query
+                    required: false
+                    description: >
+                        Cursor token for pagination.  
+                        Use `next_cursor` from the previous response to fetch the next page.
+                    schema:
+                        type: string
+                        example: eyJwYWdlIjoyfQ==
+            security:
+                -
+                    bearerAuth: [ ]
             responses:
                 "200":
-                    description: Деталі платежу
+                    description: Successful response with paginated list of customers.
                     content:
                         application/json:
                             schema:
                                 type: object
                                 properties:
                                     data:
-                                        oneOf:
-                                            - $ref: "#/components/schemas/SwiftPaymentData"
-                                            - $ref: "#/components/schemas/SepaPaymentData"
-                "400": { $ref: "#/components/responses/CommonErrors" }
-                "401": { $ref: "#/components/responses/CommonErrors" }
-                "403": { $ref: "#/components/responses/CommonErrors" }
-    /payments/cancelpayment:
+                                        type: array
+                                        description: List of customer objects on the current page.
+                                        items:
+                                            type: object
+                                            properties:
+                                                id:
+                                                    type: string
+                                                    description: Unique PaySaxas customer ID.
+                                                    example: cust_123456789
+                                                type:
+                                                    type: string
+                                                    enum: [ individual, business ]
+                                                    description: Customer type.
+                                                    example: business
+                                                status:
+                                                    type: string
+                                                    enum: [ inactive, reserved, active, closed ]
+                                                    description: Current customer lifecycle status.
+                                                    example: active
+                                                country:
+                                                    type: string
+                                                    description: ISO 3166-1 alpha-2 country code.
+                                                    example: DE
+                                                created_at:
+                                                    type: string
+                                                    format: date-time
+                                                    description: Creation timestamp (ISO 8601, UTC).
+                                                    example: "2025-10-21T08:00:00Z"
+                                                updated_at:
+                                                    type: string
+                                                    format: date-time
+                                                    description: Last modification timestamp (ISO 8601, UTC).
+                                                    example: "2025-10-23T11:45:00Z"
+                                    pagination:
+                                        type: object
+                                        description: Pagination metadata for cursor-based pagination.
+                                        properties:
+                                            next_cursor:
+                                                type: string
+                                                description: Token for the next page.
+                                                example: eyJwYWdlIjoyfQ==
+                                            limit:
+                                                type: integer
+                                                description: Number of results per page.
+                                                example: 10
+                "400":
+                    description: Validation Error — one or more query parameters are invalid or unsupported.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Validation Error
+                                    error_description:
+                                        type: string
+                                        example: Invalid status filter.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                description: Unique internal trace identifier for debugging.
+                                                example: abc123
+                "401":
+                    description: Unauthorized — authentication token missing or expired.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Unauthorized
+                                    error_description:
+                                        type: string
+                                        example: invalid or missing token.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                description: Unique internal trace identifier for debugging.
+                                                example: abc123
+                "403":
+                    description: Insufficient Permissions — token lacks required access scope.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Insufficient Permissions
+                                    error_description:
+                                        type: string
+                                        example: Scope customers:read required.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                description: Unique internal trace identifier for debugging.
+                                                example: abc123
         post:
-            summary: Скасувати непроведений платіж
-            tags: [Payments]
+            summary: Create a Customer
+            description: >
+                Creates a new customer record — either **individual** or **business** — and initializes its lifecycle
+                in the `pre_registration` stage.  
+                This is the first step of the customer onboarding process.  
+                After creation, lifecycle transitions are handled internally:
+                  * **Individuals** progress automatically (system-driven flow).
+                  * **Businesses** progress manually through compliance review in the back office.  
+                ⚠️ This endpoint does **not** accept or expose any KYC/KYB data.
+            operationId: createCustomer
+            tags:
+                - Customers
+            security:
+                -
+                    bearerAuth: [ ]
             requestBody:
                 required: true
                 content:
                     application/json:
                         schema:
                             type: object
+                            required:
+                                - type
+                                - email
                             properties:
-                                account: { type: string }
-                                paymentID: { type: integer }
-                            required: [account, paymentID]
+                                type:
+                                    type: string
+                                    description: Customer type.
+                                    enum: [ individual, business ]
+                                    example: business
+                                email:
+                                    type: string
+                                    format: email
+                                    description: Unique customer email address (used for registration and communication).
+                                    example: ops@acme.example
+                                reference_id:
+                                    type: string
+                                    description: External partner reference.
+                                    example: ext-ACME001
+                                metadata:
+                                    type: object
+                                    description: Non-sensitive metadata used for CRM or reconciliation.
+                                    properties:
+                                        created_by:
+                                            type: string
+                                            description: Source system that initiated registration.
+                                            example: partner-portal-url
+                                        client_reference:
+                                            type: string
+                                            description: Optional client-side reference for linking internal systems.
+                                            example: crm-7890
             responses:
-                "200":
-                    description: Результат скасування
-                    content:
-                        application/json:
-                            schema: { $ref: "#/components/schemas/OperationResult" }
-                "400": { $ref: "#/components/responses/CommonErrors" }
-                "401": { $ref: "#/components/responses/CommonErrors" }
-                "403": { $ref: "#/components/responses/CommonErrors" }
-    /confirmation/checkfunds:
-        post:
-            summary: Підтвердження наявності коштів
-            tags: [Confirmation]
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema: { $ref: "#/components/schemas/CheckFundsRequest" }
-            responses:
-                "200":
-                    description: Результат перевірки
+                "201":
+                    description: Customer successfully created.
                     content:
                         application/json:
                             schema:
                                 type: object
                                 properties:
-                                    result:
-                                        type: integer
-                                        description: "0 — недостатньо, 1 — достатньо"
-                                required: [result]
-                "400": { $ref: "#/components/responses/CommonErrors" }
-                "401": { $ref: "#/components/responses/CommonErrors" }
-                "403": { $ref: "#/components/responses/CommonErrors" }
+                                    id:
+                                        type: string
+                                        description: Unique PaySaxas customer identifier.
+                                        example: cust_123456789
+                                    type:
+                                        type: string
+                                        enum: [ individual, business ]
+                                        description: Defines customer type.
+                                        example: business
+                                    reference_id:
+                                        type: string
+                                        description: External partner or CRM reference.
+                                        example: ext-ACME001
+                                    email:
+                                        type: string
+                                        description: Customer email.
+                                        example: ops@acme.example
+                                    status:
+                                        type: string
+                                        description: Lifecycle stage — starts as `pre_registration`.
+                                        example: pre_registration
+                                    created_at:
+                                        type: string
+                                        format: date-time
+                                        description: Creation timestamp (ISO 8601, UTC).
+                                        example: "2025-10-21T08:00:00Z"
+                                    updated_at:
+                                        type: string
+                                        format: date-time
+                                        description: Last modification timestamp (ISO 8601, UTC).
+                                        example: "2025-10-21T08:00:00Z"
+                                    metadata:
+                                        type: object
+                                        description: Non-sensitive internal metadata.
+                                        properties:
+                                            created_by:
+                                                type: string
+                                                example: partner-portal-url
+                                            client_reference:
+                                                type: string
+                                                example: crm-7890
+                "400":
+                    description: Validation Error — missing or invalid required fields.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Validation Error
+                                    error_description:
+                                        type: string
+                                        example:
+                                            Missing required field: email
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: abc123
+                "401":
+                    description: Unauthorized — authentication token missing or expired.
+                "403":
+                    description: Insufficient Permissions — token lacks required access scope.
+                "409":
+                    description: Duplicate Customer — a record with the same email already exists.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Duplicate Customer
+                                    error_description:
+                                        type: string
+                                        example: Customer with this email already exists
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: xyz321
+    /transactions/{id}:
+        get:
+            summary: Retrieve Transaction Details
+            description: >
+                Retrieves full details about a specific transaction by its unique ID.
+                Works for all transaction directions: incoming, outgoing.
+            operationId: getTransactionById
+            tags:
+                - Transactions
+            parameters:
+                -
+                    name: id
+                    in: path
+                    required: true
+                    description: Unique transaction identifier (e.g. `txn_345ab9`)
+                    schema:
+                        type: string
+                -
+                    name: Authorization
+                    in: header
+                    required: true
+                    description:
+                        Bearer token for authentication. Example `Bearer YOUR_API_TOKEN`
+                    schema:
+                        type: string
+                -
+                    name: Accept
+                    in: header
+                    required: true
+                    description:
+                        Response format. Example `application/json`
+                    schema:
+                        type: string
+                -
+                    name: X-Request-Id
+                    in: header
+                    required: false
+                    description: Optional trace identifier for logging and correlation.
+                    schema:
+                        type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    id:
+                                        type: string
+                                        description: Unique transaction identifier.
+                                        example: txn_345ab9
+                                    account_id:
+                                        type: string
+                                        description: Linked account ID.
+                                        example: acc_782b4f
+                                    type:
+                                        type: string
+                                        description:
+                                            Transaction direction — one of incoming, outgoing.
+                                        enum: [ incoming, outgoing ]
+                                        example: incoming
+                                    status:
+                                        type: string
+                                        description: Unified lifecycle status.
+                                        enum: [ pending, processing, completed, failed, returned ]
+                                        example: completed
+                                    amount:
+                                        type: number
+                                        format: float
+                                        description: Transaction amount in EUR (immutable).
+                                        example: 1200.50
+                                    currency:
+                                        type: string
+                                        description: Always "EUR".
+                                        example: EUR
+                                    reference:
+                                        type: string
+                                        description: Payment or transfer reference.
+                                        example: Salary January 2025
+                                    sender:
+                                        type: object
+                                        description: Present only for incoming transactions.
+                                        properties:
+                                            name:
+                                                type: string
+                                                description: Sender name.
+                                                example: ACME GmbH
+                                            iban:
+                                                type: string
+                                                description: Sender IBAN (Finnish IBAN used in examples).
+                                                example: FI76512108001245126199
+                                    metadata:
+                                        type: object
+                                        description: Internal non-sensitive metadata.
+                                        properties:
+                                            internal_reference:
+                                                type: string
+                                                example: SAFE_TXN_8471
+                                    created_at:
+                                        type: string
+                                        format: date-time
+                                        description: Timestamp when the transaction was created (ISO 8601, UTC).
+                                        example: 2025-01-10T08:30:00Z
+                                    updated_at:
+                                        type: string
+                                        format: date-time
+                                        description: Timestamp of last status update (ISO 8601, UTC).
+                                        example: 2025-01-10T09:02:00Z
+                            examples:
+                                incomingExample:
+                                    summary: Incoming SEPA credit
+                                    value:
+                                        id: txn_908aa2
+                                        account_id: acc_32c410
+                                        type: incoming
+                                        status: completed
+                                        amount: 1200.50
+                                        currency: EUR
+                                        reference: Salary January 2025
+                                        sender:
+                                            name: ACME GmbH
+                                            iban: FI76512108001245126199
+                                        created_at: 2025-01-10T08:30:00Z
+                                        updated_at: 2025-01-10T09:02:00Z
+                                outgoingExample:
+                                    summary: Outgoing payment
+                                    value:
+                                        id: txn_345ac1
+                                        account_id: acc_782b4f
+                                        type: outgoing
+                                        status: completed
+                                        amount: 250.00
+                                        currency: EUR
+                                        reference: PAY-2025-0109
+                                        created_at: 2025-01-15T11:20:00Z
+                                        updated_at: 2025-01-15T11:35:00Z
+                '400':
+                    description: Validation Error — Invalid transaction ID or malformed request.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                validationError:
+                                    value:
+                                        error_name: Validation Error
+                                        error_description: Invalid transaction ID format.
+                                        metadata:
+                                            trace_id: tr_12af61
+                '401':
+                    description: Unauthorized — Missing or invalid authentication token.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                '403':
+                    description: Insufficient Permissions — Access denied (scope transactions:read required).
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                '404':
+                    description: Transaction Not Found — The specified transaction does not exist or access is restricted.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                notFound:
+                                    value:
+                                        error_name: Transaction Not Found
+                                        error_description: Transaction with ID txn_345ab9 not found or access is restricted.
+                                        metadata:
+                                            trace_id: tr_5e71cb
+                '500':
+                    description: Internal Error — Unexpected server-side error.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+    /transactions:
+        get:
+            summary: List Transactions
+            description: >
+                Retrieves a paginated list of transactions for the authenticated customer.  
+                Transactions are immutable ledger records and returned in read-only mode.
+            operationId: listTransactions
+            tags:
+                - Transactions
+            security:
+                -
+                    bearerAuth: [ ]
+            parameters:
+                -
+                    name: cursor
+                    in: query
+                    required: false
+                    description: Cursor for pagination; use the `next_cursor` value from the previous response.
+                    schema:
+                        type: string
+                -
+                    name: Authorization
+                    in: header
+                    required: true
+                    description: Authentication token.
+                    schema:
+                        type: string
+                        example: Bearer YOUR_API_TOKEN
+                -
+                    name: Accept
+                    in: header
+                    required: true
+                    description: Response format.
+                    schema:
+                        type: string
+                        example: application/json
+                -
+                    name: X-Request-Id
+                    in: header
+                    required: false
+                    description: Optional trace identifier for logging and correlation.
+                    schema:
+                        type: string
+                        example: req_123e4567-e89b-12d3-a456-426614174000
+            responses:
+                '200':
+                    description: Transactions list successfully retrieved.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/TransactionsListResponse'
+                            examples:
+                                success:
+                                    value:
+                                        data:
+                                            -
+                                                id: txn_345ab9
+                                                account_id: acc_782b4f
+                                                type: incoming
+                                                amount: 2500.00
+                                                currency: EUR
+                                                status: completed
+                                                reference: INV-2025-0032
+                                                created_at: 2025-01-15T10:15:00Z
+                                            -
+                                                id: txn_345ac1
+                                                account_id: acc_782b4f
+                                                type: outgoing
+                                                amount: 120.75
+                                                currency: EUR
+                                                status: failed
+                                                reference: PAY-2025-0109
+                                                created_at: 2025-01-15T11:20:00Z
+                                        pagination:
+                                            next_cursor: eyJwYWdlIjoyfQ==
+                '400':
+                    description: Malformed cursor or invalid request.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                invalidCursor:
+                                    value:
+                                        error_name: Validation Error
+                                        error_description: Invalid cursor value.
+                                        metadata:
+                                            trace_id: tr_12af61
+                '401':
+                    description: Missing or invalid authentication token.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                unauthorized:
+                                    value:
+                                        error_name: Unauthorized
+                                        error_description: Invalid or missing token.
+                                        metadata:
+                                            trace_id: tr_48cb19
+                '403':
+                    description: Access denied — scope `transactions:read` required.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                insufficientPermissions:
+                                    value:
+                                        error_name: Insufficient Permissions
+                                        error_description: Scope transactions:read required.
+                                        metadata:
+                                            trace_id: tr_66ac11
+                '500':
+                    description: Unexpected server-side error.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                internalError:
+                                    value:
+                                        error_name: Internal Error
+                                        error_description: Unexpected processing error.
+                                        metadata:
+                                            trace_id: tr_82cb19
+    /accounts/{id}/ibans:
+        get:
+            summary: List IBANs for an Account
+            description: >
+                Retrieves a list of all IBANs linked to a specific verified account.
+                The endpoint is read-only and returns safe structural data only — no real financial identifiers or personal data.
+                It is used for reconciliation, reporting, and validating inbound payment references.
+            operationId: listIbansByAccount
+            tags:
+                - Accounts
+            security:
+                -
+                    bearerAuth: [ ]
+            parameters:
+                -
+                    name: id
+                    in: path
+                    required: true
+                    description: Unique identifier of the parent account.
+                    schema:
+                        type: string
+                        example: acc_782b4f
+                -
+                    name: cursor
+                    in: query
+                    required: false
+                    description: Cursor token for pagination. Use `next_cursor` from the previous response.
+                    schema:
+                        type: string
+                        example: eyJwYWdlIjoyfQ==
+                -
+                    name: limit
+                    in: query
+                    required: false
+                    description:
+                        Number of records per page. Default25. Max 100.
+                    schema:
+                        type: integer
+                        example: 25
+            responses:
+                "200":
+                    description: Successful response with list of IBANs.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: array
+                                        description: List of vIBAN objects linked to the account.
+                                        items:
+                                            type: object
+                                            properties:
+                                                iban:
+                                                    type: string
+                                                    description: Finnish-format vIBAN (masked example).
+                                                    example: FI2112345600000785
+                                                bic:
+                                                    type: string
+                                                    description: BIC of issuing bank (masked example).
+                                                    example: PAYSA0XXX
+                                                currency:
+                                                    type: string
+                                                    description: Account currency (always "EUR").
+                                                    example: EUR
+                                                status:
+                                                    type: string
+                                                    enum: [ active, reserved, closed ]
+                                                    description: IBAN lifecycle status.
+                                                    example: active
+                                                created_at:
+                                                    type: string
+                                                    format: date-time
+                                                    description: Timestamp of issuance (ISO 8601, UTC).
+                                                    example: "2025-01-15T10:00:00Z"
+                                    pagination:
+                                        type: object
+                                        description: Cursor pagination object.
+                                        properties:
+                                            limit:
+                                                type: integer
+                                                description: Number of records per page.
+                                                example: 25
+                                            next_cursor:
+                                                type: string
+                                                description: Token for next page (if available).
+                                                example: eyJwYWdlIjoyfQ==
+                "400":
+                    description: Validation Error — invalid account ID or query parameters.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Validation Error
+                                    error_description:
+                                        type: string
+                                        example: Invalid account ID format.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: abc123
+                "401":
+                    description: Unauthorized — missing or invalid access token.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Unauthorized
+                                    error_description:
+                                        type: string
+                                        example: Invalid or expired access token.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: def456
+                "403":
+                    description: Insufficient Permissions — scope `ibans:read` required.
+                "404":
+                    description: Account Not Found — account not found or inactive.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Account Not Found
+                                    error_description:
+                                        type: string
+                                        example: Account ID not found or inactive.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: xyz987
+                "500":
+                    description: Internal Error — unexpected processing issue.
+        post:
+            summary: Issue a New IBAN
+            description: >
+                Creates a new **IBAN** linked to the specified account.  
+                Each IBAN shares the same ledger balance as its parent account.  
+                All compliance, currency, and operational rules of the parent account apply to its IBANs.
+            operationId: issueNewIban
+            tags:
+                - Accounts
+            security:
+                -
+                    BearerAuth: [ ]
+            parameters:
+                -
+                    name: id
+                    in: path
+                    required: true
+                    description: Unique ID of the parent account.
+                    schema:
+                        type: string
+                        example: acc_782b4f
+            requestBody:
+                required: false
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                metadata:
+                                    type: object
+                                    description: Optional metadata for internal references or labeling (no personal data allowed).
+                                    properties:
+                                        label:
+                                            type: string
+                                            example: Marketing campaign IBAN
+                                        reference:
+                                            type: string
+                                            example: CAMP-001
+                                        purpose:
+                                            type: string
+                                            example: Inbound SEPA for campaign
+            responses:
+                "201":
+                    description: IBAN successfully issued and active.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    iban:
+                                        type: string
+                                        description: Finnish-format IBAN (example only, not real).
+                                        example: FI2112345600000785
+                                    bic:
+                                        type: string
+                                        description: BIC of the issuing institution (masked example).
+                                        example: PAYSA0XXX
+                                    currency:
+                                        type: string
+                                        description: Always EUR (ISO 4217).
+                                        example: EUR
+                                    status:
+                                        type: string
+                                        description: Lifecycle status.
+                                        enum: [ active, reserved, closed ]
+                                        example: active
+                                    created_at:
+                                        type: string
+                                        format: date-time
+                                        description: Timestamp when the IBAN was issued (ISO 8601, UTC).
+                                        example: "2025-01-15T10:00:00Z"
+                "202":
+                    description: IBAN issuance is being processed asynchronously.
+                "400":
+                    description: Validation Error — invalid account ID or malformed payload.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Validation Error
+                                    error_description:
+                                        type: string
+                                        example: Invalid account ID or unsupported payload.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_0f51a1
+                "401":
+                    description: Unauthorized — missing or invalid authentication token.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Unauthorized
+                                    error_description:
+                                        type: string
+                                        example: Missing or invalid authentication token.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_7f22cc
+                "403":
+                    description: Insufficient Permissions — scope `ibans:write` required.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Insufficient Permissions
+                                    error_description:
+                                        type: string
+                                        example: Scope ibans:write required.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_9fa512
+                "404":
+                    description: Account Not Found — parent account not found or inactive.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Account Not Found
+                                    error_description:
+                                        type: string
+                                        example: Parent account not found or inactive.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_54cc92
+                "409":
+                    description: Duplicate IBAN — IBAN already exists for this account.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Duplicate IBAN
+                                    error_description:
+                                        type: string
+                                        example: IBAN already exists for this account.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_7ae2d0
+                "500":
+                    description: Internal Error — unexpected server-side error.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Internal Error
+                                    error_description:
+                                        type: string
+                                        example: Unexpected processing error.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_82cb19
+    /accounts/{id}:
+        get:
+            summary: Retrieve Account Details
+            description: >
+                Retrieves detailed information about a specific account, including its currency, balances, type, and lifecycle status.  
+                No sensitive or personally identifiable information (PII) is ever returned.  
+                This endpoint is used for account monitoring, reconciliation, and balance validation within the verified PaySaxas ecosystem.
+            operationId: getAccountById
+            tags:
+                - Accounts
+            security:
+                -
+                    bearerAuth: [ ]
+            parameters:
+                -
+                    name: id
+                    in: path
+                    required: true
+                    description: Unique account identifier.
+                    schema:
+                        type: string
+                        example: acc_782b4f
+            responses:
+                "200":
+                    description: Successful response with account details.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    id:
+                                        type: string
+                                        description: Unique account identifier.
+                                        example: acc_782b4f
+                                    customer_id:
+                                        type: string
+                                        description: ID of the verified customer owning the account.
+                                        example: cust_9f22ab7c
+                                    currency:
+                                        type: string
+                                        description: Account currency (always EUR, ISO 4217).
+                                        example: EUR
+                                    account_type:
+                                        type: string
+                                        description: Account type.
+                                        enum: [ individual, business ]
+                                        example: individual
+                                    balance:
+                                        type: object
+                                        description: Account balance details.
+                                        properties:
+                                            current:
+                                                type: number
+                                                description: Current total ledger balance.
+                                                example: 12000.75
+                                            available:
+                                                type: number
+                                                description: Funds currently available (after holds or pending operations).
+                                                example: 11850.25
+                                    status:
+                                        type: string
+                                        description: Current account lifecycle status.
+                                        enum: [ inactive, reserved, active, closed ]
+                                        example: active
+                                    metadata:
+                                        type: object
+                                        description: Optional internal metadata (label, purpose, internal reference).
+                                        properties:
+                                            label:
+                                                type: string
+                                                example: EUR operational account
+                                    created_at:
+                                        type: string
+                                        format: date-time
+                                        description: Timestamp of account creation (ISO 8601, UTC).
+                                        example: "2025-10-30T10:20:11Z"
+                                    updated_at:
+                                        type: string
+                                        format: date-time
+                                        description: Timestamp of the last update (ISO 8601, UTC).
+                                        example: "2025-10-30T11:03:55Z"
+                "400":
+                    description: Validation Error — invalid account ID format.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Validation Error
+                                    error_description:
+                                        type: string
+                                        example: Invalid account ID format.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_1f2a9b
+                "401":
+                    description: Unauthorized — missing or expired authentication token.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Unauthorized
+                                    error_description:
+                                        type: string
+                                        example: Missing or expired authentication token.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_3f5c7e
+                "403":
+                    description: Insufficient Permissions — access denied, scope `accounts:read` required.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Insufficient Permissions
+                                    error_description:
+                                        type: string
+                                        example: Access denied — scope accounts:read required.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_7b1f5e
+                "404":
+                    description: Account Not Found — account does not exist or is inaccessible.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Account Not Found
+                                    error_description:
+                                        type: string
+                                        example: Account does not exist or access denied.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_9a0b22
+                "500":
+                    description: Internal Error — unexpected server error.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Internal Error
+                                    error_description:
+                                        type: string
+                                        example: Unexpected server error. Please retry or contact support.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_6d88f4
+    /accounts:
+        get:
+            summary: List Accounts
+            description: >
+                Returns a **paginated** list of accounts associated with the authenticated, verified customer.  
+                The response contains general account metadata only (no balances or IBANs).
+            operationId: listAccounts
+            tags:
+                - Accounts
+            security:
+                -
+                    bearerAuth: [ ]
+            parameters:
+                -
+                    name: cursor
+                    in: query
+                    required: false
+                    description: Cursor token for the next page. Use `pagination.next_cursor` from the previous response.
+                    schema:
+                        type: string
+                        example: eyJwYWdlIjoyfQ==
+                -
+                    name: limit
+                    in: query
+                    required: false
+                    description:
+                        Number of records per page. Default25. Max 100.
+                    schema:
+                        type: integer
+                        example: 25
+            responses:
+                "200":
+                    description: List of accounts successfully retrieved.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: array
+                                        description: List of account objects.
+                                        items:
+                                            type: object
+                                            properties:
+                                                id:
+                                                    type: string
+                                                    description: Unique account identifier.
+                                                    example: acc_782b4f
+                                                customer_id:
+                                                    type: string
+                                                    description: Associated verified customer ID.
+                                                    example: cust_9f22ab7c
+                                                currency:
+                                                    type: string
+                                                    description: Account currency (always EUR, ISO 4217).
+                                                    example: EUR
+                                                account_type:
+                                                    type: string
+                                                    description: Account type.
+                                                    enum: [ individual, business ]
+                                                    example: individual
+                                                status:
+                                                    type: string
+                                                    description: Account lifecycle status.
+                                                    enum: [ inactive, reserved, active, closed ]
+                                                    example: active
+                                                created_at:
+                                                    type: string
+                                                    format: date-time
+                                                    description: Account creation timestamp (ISO 8601, UTC).
+                                                    example: "2025-10-30T10:20:11Z"
+                                    pagination:
+                                        type: object
+                                        description: Cursor pagination object.
+                                        properties:
+                                            limit:
+                                                type: integer
+                                                description: Current page size.
+                                                example: 25
+                                            next_cursor:
+                                                type: string
+                                                description: Opaque token for the next page (if available).
+                                                example: eyJwYWdlIjoyfQ==
+                "204":
+                    description: No accounts found for this customer.
+                "400":
+                    description: Validation Error — invalid or unsupported query parameter.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Validation Error
+                                    error_description:
+                                        type: string
+                                        example: Invalid query parameter.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_01ab99
+                "401":
+                    description: Unauthorized — missing or invalid access token.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Unauthorized
+                                    error_description:
+                                        type: string
+                                        example: Access token invalid or expired.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_7f22cc
+                "403":
+                    description: Insufficient Permissions — scope `accounts:read` required.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Insufficient Permissions
+                                    error_description:
+                                        type: string
+                                        example: Missing scope accounts:read.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_55af10
+                "500":
+                    description: Internal Error — unexpected processing error.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Internal Error
+                                    error_description:
+                                        type: string
+                                        example: Unexpected processing error.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_93aa21
+        post:
+            summary: Create an Account
+            description: >
+                Creates a new account for a verified customer.  
+                Accounts are issued only in EUR and can be either `individual` or `business`.
+            operationId: createAccount
+            tags:
+                - Accounts
+            security:
+                -
+                    BearerAuth: [ ]
+            parameters:
+                -
+                    name: X-Request-Id
+                    in: header
+                    required: true
+                    description: >
+                        Idempotency key and trace correlation (UUIDv4).  
+                        Repeating the same request with the same value returns the same account.
+                    schema:
+                        type: string
+                        example: req_4f9a6b2d-27a6-4a1e-9d3a-2b2e2a5b1c2d
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - customer_id
+                                - currency
+                                - account_type
+                            properties:
+                                customer_id:
+                                    type: string
+                                    description: ID of an existing verified customer.
+                                    example: cust_9f22ab7c
+                                currency:
+                                    type: string
+                                    description: Account currency (always EUR, ISO 4217).
+                                    enum: [ EUR ]
+                                    example: EUR
+                                account_type:
+                                    type: string
+                                    description: Account type.
+                                    enum: [ individual, business ]
+                                    example: individual
+                                metadata:
+                                    type: object
+                                    description: Optional internal metadata (e.g., label, purpose). Not exposed in public responses.
+                                    properties:
+                                        label:
+                                            type: string
+                                            example: EUR operational account
+            responses:
+                "201":
+                    description: Account successfully created and active.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    id:
+                                        type: string
+                                        description: Unique account identifier.
+                                        example: acc_782b4f
+                                    customer_id:
+                                        type: string
+                                        description: ID of the customer who owns the account.
+                                        example: cust_9f22ab7c
+                                    currency:
+                                        type: string
+                                        description: Currency code (always EUR).
+                                        example: EUR
+                                    account_type:
+                                        type: string
+                                        description: Account type.
+                                        enum: [ individual, business ]
+                                        example: individual
+                                    status:
+                                        type: string
+                                        description: Account lifecycle status.
+                                        enum: [ inactive, reserved, active, closed ]
+                                        example: active
+                                    created_at:
+                                        type: string
+                                        format: date-time
+                                        description: Timestamp of creation (ISO 8601, UTC).
+                                        example: "2025-10-30T10:20:11Z"
+                "202":
+                    description: Account creation request accepted but still processing.
+                "400":
+                    description: Validation Error — invalid input or unsupported currency.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Validation Error
+                                    error_description:
+                                        type: string
+                                        example: Unsupported currency code.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_0f51a1
+                "401":
+                    description: Unauthorized — missing or invalid authentication token.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Unauthorized
+                                    error_description:
+                                        type: string
+                                        example: Missing or invalid authentication token.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_7f22cc
+                "403":
+                    description: Insufficient Permissions — scope `accounts:write` required.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Insufficient Permissions
+                                    error_description:
+                                        type: string
+                                        example: Access denied — scope accounts:write required.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_55af10
+                "404":
+                    description: Customer Not Found — customer does not exist or is not verified.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Customer Not Found
+                                    error_description:
+                                        type: string
+                                        example: Customer does not exist or is not verified.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_31cc52
+                "409":
+                    description: Duplicate Account — account already exists for this customer and currency.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Duplicate Account
+                                    error_description:
+                                        type: string
+                                        example: Account already exists for this customer and currency.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_6a9de1
+                "500":
+                    description: Internal Error — unexpected server-side error.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Internal Error
+                                    error_description:
+                                        type: string
+                                        example: Unexpected processing error.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_82cb19
+    /payments/{id}:
+        get:
+            summary: Retrieve Outgoing Payment Details
+            description: >
+                Retrieves detailed information about a specific outgoing SEPA Credit Transfer (SEPA OUT)
+                by its unique identifier.  
+                The endpoint provides read-only data on payment status and settlement outcome.  
+                All provider-specific routing, AML, and settlement logic are abstracted under a unified PaySaxas lifecycle model.
+            operationId: getPaymentById
+            tags:
+                - Payments
+            parameters:
+                -
+                    name: id
+                    in: path
+                    required: true
+                    schema:
+                        type: string
+                    description: Unique payment identifier (e.g. `pay_84910d`)
+                -
+                    name: Authorization
+                    in: header
+                    required: true
+                    schema:
+                        type: string
+                        example: Bearer YOUR_API_TOKEN
+                    description: Authentication token
+                -
+                    name: Accept
+                    in: header
+                    required: true
+                    schema:
+                        type: string
+                        example: application/json
+                    description: Response format
+                -
+                    name: X-Request-Id
+                    in: header
+                    required: false
+                    schema:
+                        type: string
+                        example: req_123e4567-e89b-12d3-a456-426614174000
+                    description: Optional trace identifier for logging and correlation
+            responses:
+                '200':
+                    description: Payment details successfully retrieved
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    id:
+                                        type: string
+                                        description: Unique payment identifier
+                                        example: pay_84910d
+                                    debtor_account_id:
+                                        type: string
+                                        description: Debited PaySaxas account ID
+                                        example: acc_72b24f
+                                    amount:
+                                        type: number
+                                        format: float
+                                        description: Payment amount in EUR
+                                        example: 2500.00
+                                    currency:
+                                        type: string
+                                        description: Always `"EUR"` for SEPA Credit Transfers
+                                        example: EUR
+                                    beneficiary:
+                                        type: object
+                                        properties:
+                                            name:
+                                                type: string
+                                                description: Beneficiary legal name
+                                                example: John Doe
+                                            iban:
+                                                type: string
+                                                description: Beneficiary IBAN (Finnish IBAN used in examples)
+                                                example: FI1350001540000056
+                                    reference:
+                                        type: string
+                                        description: Payment reference or remittance information
+                                        example: Invoice #3842
+                                    status:
+                                        type: string
+                                        description: >
+                                            Unified lifecycle status:  
+                                            • `created` — awaiting processing  
+                                            • `pending` — under AML/compliance checks  
+                                            • `completed` — settled and reconciled  
+                                            • `failed` — could not be processed  
+                                            • `returned` — funds refunded or reversed
+                                        example: completed
+                                    details:
+                                        type: object
+                                        properties:
+                                            reason_code:
+                                                type: string
+                                                nullable: true
+                                                description: SEPA or EPC reason code for failed or returned payments
+                                                example: null
+                                            reason_description:
+                                                type: string
+                                                nullable: true
+                                                description: Human-readable explanation mapped from reason code
+                                                example: null
+                                    created_at:
+                                        type: string
+                                        format: date-time
+                                        description: Timestamp when the payment was created (ISO 8601 UTC)
+                                        example: 2025-01-15T09:30:00Z
+                                    updated_at:
+                                        type: string
+                                        format: date-time
+                                        description: Timestamp of latest status change (ISO 8601 UTC)
+                                        example: 2025-01-15T10:02:00Z
+                            examples:
+                                success:
+                                    value:
+                                        id: pay_84910d
+                                        debtor_account_id: acc_72b24f
+                                        amount: 2500.00
+                                        currency: EUR
+                                        beneficiary:
+                                            name: John Doe
+                                            iban: FI1350001540000056
+                                        reference: Invoice #3842
+                                        status: completed
+                                        details:
+                                            reason_code: null
+                                            reason_description: null
+                                        created_at: 2025-01-15T09:30:00Z
+                                        updated_at: 2025-01-15T10:02:00Z
+                '400':
+                    description: Invalid payment ID or malformed request
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Validation Error
+                                    error_description:
+                                        type: string
+                                        example: Invalid payment ID format.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_12af61
+                '401':
+                    description: Missing or invalid authentication token
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Unauthorized
+                                    error_description:
+                                        type: string
+                                        example: Invalid or expired token.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_48cb19
+                '403':
+                    description: Access denied — scope `payments:read` required
+                '404':
+                    description: Payment does not exist or belongs to another customer
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Payment Not Found
+                                    error_description:
+                                        type: string
+                                        example: Payment with ID pay_84910d not found or access is restricted.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_5e71cb
+                '500':
+                    description: Unexpected server-side error
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error_name:
+                                        type: string
+                                        example: Internal Error
+                                    error_description:
+                                        type: string
+                                        example: Unexpected processing error.
+                                    metadata:
+                                        type: object
+                                        properties:
+                                            trace_id:
+                                                type: string
+                                                example: tr_82cb19
+    /payments:
+        get:
+            summary: Retrieve Outgoing Payments
+            description: >
+                Retrieves a paginated list of outgoing SEPA Credit Transfers (SEPA OUT).  
+                The endpoint is read-only and returns payments created by the authenticated customer.
+            operationId: listPayments
+            tags:
+                - Payments
+            security:
+                -
+                    bearerAuth: [ ]
+            parameters:
+                -
+                    name: cursor
+                    in: query
+                    required: false
+                    description: Cursor for pagination; use the `next_cursor` value from the previous response.
+                    schema:
+                        type: string
+                -
+                    name: Accept
+                    in: header
+                    required: true
+                    description: Response format.
+                    schema:
+                        type: string
+                        example: application/json
+                -
+                    name: X-Request-Id
+                    in: header
+                    required: false
+                    description: Trace identifier for logging and correlation.
+                    schema:
+                        type: string
+                        example: req_123e4567-e89b-12d3-a456-426614174000
+            responses:
+                '200':
+                    description: Payments list successfully retrieved.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PaymentsListResponse'
+                            examples:
+                                success:
+                                    value:
+                                        data:
+                                            -
+                                                id: pay_84910d
+                                                debtor_account_id: acc_72b24f
+                                                amount: 2500.00
+                                                currency: EUR
+                                                beneficiary:
+                                                    name: John Doe
+                                                    iban: FI1350001540000056
+                                                    iban_status: active
+                                                reference: Invoice #3842
+                                                status: completed
+                                                created_at: 2025-01-15T09:30:00Z
+                                                updated_at: 2025-01-15T10:02:00Z
+                                            -
+                                                id: pay_84910e
+                                                debtor_account_id: acc_72b24f
+                                                amount: 150.75
+                                                currency: EUR
+                                                beneficiary:
+                                                    name: Acme Corp
+                                                    iban: FI6150001510000051
+                                                    iban_status: closed
+                                                reference: Refund #INV2025-02
+                                                status: failed
+                                                created_at: 2025-01-16T08:50:00Z
+                                                updated_at: 2025-01-16T09:05:00Z
+                                        pagination:
+                                            next_cursor: eyJvZmZzZXQiOiJwYXlfOTk5OTkifQ
+                '400':
+                    description: Malformed cursor or invalid request.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                invalidCursor:
+                                    value:
+                                        error_name: Validation Error
+                                        error_description: Invalid cursor value.
+                                        metadata:
+                                            trace_id: tr_12af61
+                '401':
+                    description: Missing or invalid authentication token.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                unauthorized:
+                                    value:
+                                        error_name: Unauthorized
+                                        error_description: Invalid or missing token.
+                                        metadata:
+                                            trace_id: tr_48cb19
+                '403':
+                    description: Access denied — scope `payments:read` required.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                insufficientPermissions:
+                                    value:
+                                        error_name: Insufficient Permissions
+                                        error_description: Scope payments:read required.
+                                        metadata:
+                                            trace_id: tr_66ac11
+                '500':
+                    description: Unexpected server-side error.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                internalError:
+                                    value:
+                                        error_name: Internal Error
+                                        error_description: Unexpected processing error.
+                                        metadata:
+                                            trace_id: tr_82cb19
+    /payments/sepa-credit-transfers:
+        post:
+            summary: Create Outgoing SEPA Credit Transfer
+            description: >
+                Creates a new outgoing SEPA Credit Transfer (SEPA OUT).  
+                Payments are validated, queued, and processed asynchronously.  
+                Once created, a payment cannot be modified — only cancelled before processing.
+            operationId: createSepaCreditTransfer
+            tags:
+                - Payments
+            security:
+                -
+                    bearerAuth: [ ]
+            parameters:
+                -
+                    name: Authorization
+                    in: header
+                    required: true
+                    schema:
+                        type: string
+                        example: Bearer YOUR_API_TOKEN
+                    description: Authentication token.
+                -
+                    name: Accept
+                    in: header
+                    required: true
+                    schema:
+                        type: string
+                        example: application/json
+                    description: Response format.
+                -
+                    name: X-Request-Id
+                    in: header
+                    required: false
+                    schema:
+                        type: string
+                        example: req_123e4567-e89b-12d3-a456-426614174000
+                    description: Optional trace identifier for logging and correlation.
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - debtor_account_id
+                                - amount
+                                - currency
+                                - beneficiary
+                            properties:
+                                debtor_account_id:
+                                    type: string
+                                    description: PaySaxas account ID to debit funds from.
+                                    example: acc_782b4f
+                                amount:
+                                    type: number
+                                    format: float
+                                    description: Amount in EUR to transfer.
+                                    example: 250.00
+                                currency:
+                                    type: string
+                                    description: Must always be `"EUR"`.
+                                    example: EUR
+                                beneficiary:
+                                    type: object
+                                    required:
+                                        - name
+                                        - iban
+                                    properties:
+                                        name:
+                                            type: string
+                                            description: Recipient legal name.
+                                            example: ACME Oy
+                                        iban:
+                                            type: string
+                                            description: Recipient IBAN (validated per ISO 13616).
+                                            example: FI1350001540000056
+                                reference:
+                                    type: string
+                                    maxLength: 140
+                                    description: Optional payment reference text.
+                                    example: Invoice #2025-0098
+                        examples:
+                            example:
+                                value:
+                                    debtor_account_id: acc_782b4f
+                                    amount: 250.00
+                                    currency: EUR
+                                    beneficiary:
+                                        name: ACME Oy
+                                        iban: FI1350001540000056
+                                    reference: Invoice #2025-0098
+            responses:
+                '201':
+                    description: Payment successfully created.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    id:
+                                        type: string
+                                        description: Unique payment ID.
+                                        example: pay_84910d
+                                    debtor_account_id:
+                                        type: string
+                                        description: Account from which the payment was initiated.
+                                        example: acc_782b4f
+                                    amount:
+                                        type: number
+                                        description: Payment amount (EUR).
+                                        example: 250.00
+                                    currency:
+                                        type: string
+                                        description: Always `"EUR"`.
+                                        example: EUR
+                                    beneficiary:
+                                        type: object
+                                        properties:
+                                            name:
+                                                type: string
+                                                description: Recipient legal name.
+                                                example: ACME Oy
+                                            iban:
+                                                type: string
+                                                description: Recipient IBAN.
+                                                example: FI1350001540000056
+                                    reference:
+                                        type: string
+                                        description: Payment reference text.
+                                        example: Invoice #2025-0098
+                                    status:
+                                        type: string
+                                        description: >
+                                            Unified lifecycle status:  
+                                            • `pending` — created and awaiting processing  
+                                            • `processing` — under AML or operational checks  
+                                            • `completed` — credited and reconciled  
+                                            • `failed` — could not be processed  
+                                            • `returned` — refunded after rejection
+                                        example: pending
+                                    created_at:
+                                        type: string
+                                        format: date-time
+                                        description: Timestamp of creation (ISO 8601, UTC).
+                                        example: 2025-01-15T10:30:00Z
+                            examples:
+                                success:
+                                    value:
+                                        id: pay_84910d
+                                        debtor_account_id: acc_782b4f
+                                        amount: 250.00
+                                        currency: EUR
+                                        beneficiary:
+                                            name: ACME Oy
+                                            iban: FI1350001540000056
+                                        reference: Invoice #2025-0098
+                                        status: pending
+                                        created_at: 2025-01-15T10:30:00Z
+                '400':
+                    description: Invalid or missing required fields.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                validationError:
+                                    value:
+                                        error_name: Validation Error
+                                        error_description: Invalid payload or missing fields.
+                                        metadata:
+                                            trace_id: tr_12af61
+                '401':
+                    description: Missing or invalid token.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                '403':
+                    description: Access denied — scope `payments:create` required.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                '404':
+                    description: Provided `debtor_account_id` does not exist or is inactive.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                '409':
+                    description: Duplicate payment detected for the same account, amount, IBAN, and reference within 60 seconds.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                duplicatePayment:
+                                    value:
+                                        error_name: Duplicate Payment
+                                        error_description: Duplicate payment detected for the same account, amount, IBAN, and reference within 60 seconds.
+                                        metadata:
+                                            trace_id: tr_82cb19
+                '500':
+                    description: Unexpected processing error.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'

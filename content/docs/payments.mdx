@@ -14,16 +14,15 @@ Manual interventions may occur in exceptional cases (e.g., AML hold, compliance 
 > Provider names, routing logic, and SLAs are strictly internal and never exposed in any public documentation, API payload, or
 > webhook event.
 > All SEPA flows use a unified PaySaxas schema that abstracts underlying providers.
+
 ### SEPA IN (Incoming Transfers)
-
-
 #### Automated Flow (Standard Route)
 
 Incoming SEPA credits are processed through an automated pipeline that validates account ownership, applies AML screening, and credits funds upon
 successful verification.
 
 #### Typical sequence:
-Received Account Validation AML Screening Compliance Hold (if any) Safeguard Fee Deduction Settled (Completed)
+Received -> Account Validation -> AML Screening -> Compliance -> Hold (if any) -> Safeguard -> Fee Deduction -> Settled (Completed)
 
 - Each stage represents an internal state transition within the PaySaxas system.
 - All funds are safeguarded during compliance screening.
@@ -37,7 +36,7 @@ Outgoing SEPA transfers follow an automated lifecycle from order creation to set
 Each stage ensures AML and regulatory compliance, liquidity validation, and reconciliation.
 
 #### Typical sequence:
-Payment Created AML Screening Execution Settlement Completed
+Payment Created -> AML Screening -> Execution -> Settlement -> Completed
 
 - Payments are executed via approved rails under PSD2 and SEPA guidelines.
 - Failures or rejections automatically trigger status updates and webhook events.
@@ -47,28 +46,21 @@ Payment Created AML Screening Execution Settlement Completed
 
 #### Outgoing Payments (SEPA OUT)
 
-| Method | Endpoint                        | Description                                                                                                   |
-|--------|---------------------------------|---------------------------------------------------------------------------------------------------------------|
-| POST   | /payments/sepa-credit-transfers | Creates a new outgoing SEPA Credit Transfer. Requires a JWS signature for authentication.                     |
-| GET    | /payments                       | Retrieves a list of outgoing payments filtered by parameters (status, date, accountId, type).                 |
-| GET    | `/payments/{id}`                | Returns detailed information about a specific outgoing payment (amount, status, EPC reason code, timestamps). |
+| Method | Endpoint                                                                          | Description                                                                                  |
+|--------|-----------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| POST   | [`/payments/sepa-credit-transfers`](../OpenAPI/payments/createSepaCreditTransfer) | Creates a new outgoing SEPA Credit Transfer.                                                 |
+| GET    | [`/payments`](../OpenAPI/payments/listPayments)                                   | Retrieves a list of outgoing payments.                                                       |
+| GET    | [`/payments/{id}`](../OpenAPI/payments/getPaymentById)                            | Returns detailed information about a specific outgoing payment (amount, status, timestamps). |
 
 #### Incoming Payments (SEPA IN)
 
-| Method | Endpoint             | Description                                                                                                                        |
-|--------|----------------------|------------------------------------------------------------------------------------------------------------------------------------|
-| GET    | /transactions        | Lists all incoming transactions (SEPA IN, internal transfers, refunds). Supports filters by account, date range, type, and status. |
-| GET    | `/transactions/{id}` | Retrieves full transaction details by transaction ID, including status, amount, currency, and reference.                           |
+| Method | Endpoint                                                           | Description                                                                                              |
+|--------|--------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| GET    | [`/transactions`](../OpenAPI/transactions/listTransactions)        | Lists all incoming transactions.                                                                         |
+| GET    | [`/transactions/{id}`](../OpenAPI/transactions/getTransactionById) | Retrieves full transaction details by transaction ID, including status, amount, currency, and reference. |
 
 > Incoming SEPA transfers are created automatically upon receipt from partner banks and are read-only in the API.
 
 #### Webhooks (Payment & Transaction Events)
 
-### How SEPA Flows Appear in API
-
-| Flow Type          | API Section                            | Endpoint Family | Webhook Events                                                     | Data Visibility                   |
-|--------------------|----------------------------------------|-----------------|--------------------------------------------------------------------|-----------------------------------|
-| SEPA IN            | /transactions                          | Read-only       | transaction.received                                               | Balance and history only          |
-| SEPA OUT           | /payments                              | Read/Write      | payment.created, payment.settled, payment.failed, payment.returned | Status, reason, reference, amount |
-| Export / Reporting | /transactions/export, /payments/export |                 |                                                                    | Read-only — Aggregated statements |
-| Async Monitoring   | /webhooks — All events above           |                 |                                                                    | Only entity IDs                   |
+[See the OpenAPI webhook definition →](../OpenAPI/payments/Webhooks)

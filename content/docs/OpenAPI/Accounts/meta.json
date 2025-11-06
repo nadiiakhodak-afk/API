@@ -1,4 +1,11 @@
 {
-  "title": "Accounts API",
-  "icon": "Wallet"
+  "title": "Accounts",
+  "icon": "Wallet",
+  "pages": [
+    "listAccounts",
+    "getAccountById",
+    "listIbansByAccount",
+    "issueNewIban",
+    "Webhooks"
+  ]
 }

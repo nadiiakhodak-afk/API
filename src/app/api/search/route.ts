@@ -1,7 +1,7 @@
-import { source } from '@/lib/source';
-import { createFromSource } from 'fumadocs-core/search/server';
+// Це потрібно для output: 'export' — маршрут має бути повністю статичним
+export const dynamic = 'force-static';
+export const revalidate = 0;
 
-export const { GET } = createFromSource(source, {
-  // https://docs.orama.com/docs/orama-js/supported-languages
-  language: 'english',
-});
+export async function GET() {
+    return Response.json({ hits: [] });
+}

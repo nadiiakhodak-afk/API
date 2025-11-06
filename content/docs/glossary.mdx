@@ -6,56 +6,40 @@ icon: Book
 
 Definitions of common terms and abbreviations used throughout the documentation.
 
-| Term                          | Definition                                                                                                                        |
-|-------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
-| Account                       | A financial ledger entity representing client funds; linked to a customer and supports balances, transactions, and virtual IBANs. |
-| Account ID                    | Unique identifier of an account in the PaySaxas system (e.g., `acc_12345`).                                                       |
-| API                           | Application Programming Interface — allows external systems to interact with PaySaxas services.                                   |
-| Authorization                 | The process of obtaining access rights via OAuth 2.1 (Client Credentials Grant).                                                  |
-| BIC                           | Bank Identifier Code — a unique code used for identifying banks in the SWIFT network.                                             |
-| Batch Payment                 | A scheduled or grouped payment containing multiple transactions submitted together.                                               |
-| Beneficiary                   | The recipient of a payment or transfer, identified by name and IBAN.                                                              |
-| Changelog                     | Record of updates, fixes, and new features released in each API version.                                                          |
-| Client Credentials Grant      | OAuth 2.1 authorisation flow using `client_id` and `client_secret` to obtain a token.                                             |
-| CSV                           | Comma-Separated Values — file format for exporting tabular data.                                                                  |
-| Customer                      | End-user entity (individual or business) managed under a client account.                                                          |
-| Deprecation                   | The process of phasing out old API versions or features before removal.                                                           |
-| Digest                        | SHA-256 hash header of a request body, used in JWS signing.                                                                       |
-| Event ID                      | Unique identifier assigned to each webhook event to ensure deduplication.                                                         |
-| EPC Codes                     | Error codes defined by the European Payments Council for SEPA transaction failures (e.g., AC01, AM04).                            |
-| FX (Foreign Exchange)         | Conversion of funds between currencies, including quotes, conversions, and settlements.                                           |
-| IBAN                          | International Bank Account Number — standard identifier for bank accounts in the SEPA zone.                                       |
-| Instant SEPA (SCT Inst)       | Real-time SEPA payment type with near-instant settlement (up to 100,000 EUR).                                                     |
-| JWS (JSON Web Signature)      | Compact signature format used for securing API requests (detached JWS mode).                                                      |
-| JWT (JSON Web Token)          | Access token format containing claims used in OAuth 2.1 authentication.                                                           |
-| KID (Key ID)                  | Identifier for a public key, used to support key rotation and signature verification.                                             |
-| KYC (Know Your Customer)      | Verification of identity for individual customers.                                                                                |
-| KYB (Know Your Business)      | Verification of identity for legal entities and business customers.                                                               |
-| Lifecycle                     | The sequence of states an entity (account, payment, customer) transitions through from creation to completion.                    |
-| Nonce                         | Random unique value used once per request to prevent replay attacks.                                                              |
-| OAuth 2.1                     | Authentication protocol used for secure access to PaySaxas APIs.                                                                  |
-| Observability                 | Monitoring, tracing, and logging of system activity for debugging and analytics.                                                  |
-| Payment ID                    | Unique identifier of a payment transaction (e.g., `pmt_12345`).                                                                   |
-| Reconciliation                | Daily process of matching balances and transactions between PaySaxas and external banking partners.                               |
-| Replay Protection             | Security mechanism preventing reuse of signed requests using time and nonce validation.                                           |
-| SCT (SEPA Credit Transfer)    | Standard SEPA euro payment between banks within the SEPA network.                                                                 |
-| SLA (Service Level Agreement) | Contractual commitment defining uptime, incident priorities, and response times.                                                  |
-| Status Page                   | Public page showing API system uptime, incidents, and maintenance notifications.                                                  |
-| Traceparent                   | HTTP header used for distributed tracing across systems and services.                                                             |
-| Transaction                   | A record of financial movement (incoming or outgoing) within an account.                                                          |
-| UUID                          | Universally Unique Identifier used as IDs for entities like customers or webhooks.                                                |
-| Verification of Payee (VoP)   | Name-check mechanism validating that the beneficiary’s account matches the intended recipient.                                    |
-| vIBAN (Virtual IBAN)          | Sub-IBAN linked to a main account for identifying incoming payments by payer or use case.                                         |
-| Webhook Callback              | Notification sent by PaySaxas to inform clients about system events (e.g., payment.settled).                                      |
-| Webhook Signature             | Cryptographic signature (HMAC/JWS) used to verify the authenticity of webhook messages.                                           |
-| JWKS (JSON Web Key Set)       | JSON structure containing a set of public keys used for verifying signatures.                                                     |
-| X-Request-Id                  | Header containing a unique identifier for correlating requests across systems.                                                    |
-| Digest Header                 | SHA-256 hash of the request body, required for JWS signature validation.                                                          |
-| Sunset Header                 | HTTP header indicating deprecation or end-of-support date for an API version.                                                     |
-| Retry Policy                  | Strategy for retrying failed webhook deliveries using exponential backoff.                                                        |
-| Sandbox                       | Testing environment that simulates production without using live data.                                                            |
-| API Versioning                | Mechanism for managing backward compatibility and introducing new endpoints (/v1, /v2, etc.).                                     |
-| Anti-Replay                   | Security measure ensuring a signed request cannot be reused after expiry.                                                         |
-| Trace ID                      | Unique identifier used for correlating logs and traces across requests.                                                           |
-| Incident                      | An event that disrupts normal API or platform operation, requiring support action.                                                |
-| Backoff Strategy              | Progressive delay mechanism for retrying failed webhooks or API requests.                                                         |
+| Term                          | Definition                                                                                                                |
+|-------------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| Account                       | A financial ledger entity representing client funds; linked to a customer and supports balances, transactions, and IBANs. |
+| Account ID                    | Unique identifier of an account in the PaySaxas system (e.g., `acc_12345`).                                               |
+| API                           | Application Programming Interface — allows external systems to interact with PaySaxas services.                           |
+| Authorization                 | The process of obtaining access rights via OAuth 2.1 (Client Credentials Grant).                                          |
+| BIC                           | Bank Identifier Code — a unique code used for identifying banks in the SWIFT network.                                     |
+| Changelog                     | Record of updates, fixes, and new features released in each API version.                                                  |
+| Client Credentials Grant      | OAuth 2.1 authorisation flow using `client_id` and `client_secret` to obtain a token.                                     |
+| Customer                      | End-user entity (individual or business) managed under a client account.                                                  |
+| Deprecation                   | The process of phasing out old API versions or features before removal.                                                   |
+| Event ID                      | Unique identifier assigned to each webhook event to ensure deduplication.                                                 |
+| IBAN                          | International Bank Account Number — standard identifier for bank accounts in the SEPA zone.                               |
+| Instant SEPA (SCT Inst)       | Real-time SEPA payment type with near-instant settlement (up to 100,000 EUR).                                             |
+| KYC (Know Your Customer)      | Verification of identity for individual customers.                                                                        |
+| KYB (Know Your Business)      | Verification of identity for legal entities and business customers.                                                       |
+| Lifecycle                     | The sequence of states an entity (account, payment, customer) transitions through from creation to completion.            |
+| OAuth 2.1                     | Authentication protocol used for secure access to PaySaxas APIs.                                                          |
+| Observability                 | Monitoring, tracing, and logging of system activity for debugging and analytics.                                          |
+| Payment ID                    | Unique identifier of a payment transaction (e.g., `pmt_12345`).                                                           |
+| Reconciliation                | Daily process of matching balances and transactions between PaySaxas and external banking partners.                       |
+| SCT (SEPA Credit Transfer)    | Standard SEPA euro payment between banks within the SEPA network.                                                         |
+| SLA (Service Level Agreement) | Contractual commitment defining uptime, incident priorities, and response times.                                          |
+| Status Page                   | Public page showing API system uptime, incidents, and maintenance notifications.                                          |
+| Traceparent                   | HTTP header used for distributed tracing across systems and services.                                                     |
+| Transaction                   | A record of financial movement (incoming or outgoing) within an account.                                                  |
+| UUID                          | Universally Unique Identifier used as IDs for entities like customers or webhooks.                                        |
+| Webhook Callback              | Notification sent by PaySaxas to inform clients about system events (e.g., payment.settled).                              |
+| X-Request-Id                  | Header containing a unique identifier for correlating requests across systems.                                            |
+| Digest Header                 | SHA-256 hash of the request body, required for JWS signature validation.                                                  |
+| Sunset Header                 | HTTP header indicating deprecation or end-of-support date for an API version.                                             |
+| Retry Policy                  | Strategy for retrying failed webhook deliveries using exponential backoff.                                                |
+| API Versioning                | Mechanism for managing backward compatibility and introducing new endpoints (/v1, /v2, etc.).                             |
+| Anti-Replay                   | Security measure ensuring a signed request cannot be reused after expiry.                                                 |
+| Trace ID                      | Unique identifier used for correlating logs and traces across requests.                                                   |
+| Incident                      | An event that disrupts normal API or platform operation, requiring support action.                                        |
+| Backoff Strategy              | Progressive delay mechanism for retrying failed webhooks or API requests.                                                 |

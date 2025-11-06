@@ -16,7 +16,6 @@ Structure is aligned with RFC 7807 – Problem Details for HTTP APIs.
 
 ```json
 {
-  "error_code": "validation_error",
   "error_name": "Validation Error",
   "error_description": "Invalid IBAN format.",
   "metadata": {
@@ -28,7 +27,6 @@ Structure is aligned with RFC 7807 – Problem Details for HTTP APIs.
 ### Field Description
 | Field                 | Type   | Description                                                                                          |
 |-----------------------|--------|------------------------------------------------------------------------------------------------------|
-| `error_code`          | string | Machine-readable error identifier (e.g. validation_error, unauthorized, insufficient_funds).         |
 | `error_name`          | string | Human-readable, capitalised error name.                                                              |
 | `error_description`   | string | Short, human-readable summary of the problem.                                                        |
 | `metadata (optional)` | object | Contextual data for debugging (non-sensitive). May include trace_id, details, or other non-PII info. |
@@ -45,7 +43,6 @@ Structure is aligned with RFC 7807 – Problem Details for HTTP APIs.
 | Code                       | HTTP        | Meaning                                              | Typical Resolution                                     |
 |----------------------------|-------------|------------------------------------------------------|--------------------------------------------------------|
 | `VALIDATION_ERROR`         | `400 / 422` | Field validation failed.                             | Check schema, types, and mandatory fields.             |
-| `INVALID_SIGNATURE`        | `400`       | JWS or HMAC signature verification failed.           | Regenerate the signature using the correct secret.     |
 | `UNAUTHORIZED`             | `401`       | Missing or invalid OAuth token.                      | Request a new OAuth 2.1 token and retry.               |
 | `INSUFFICIENT_PERMISSIONS` | `403`       | Token scope does not allow the action.               | Use the correct scope (for example, `payments:write`). |
 | `RESOURCE_NOT_FOUND`       | `404`       | Entity not found (customer, account, payment, etc.). | Verify the resource ID or creation step.               |
@@ -58,7 +55,6 @@ Structure is aligned with RFC 7807 – Problem Details for HTTP APIs.
 ### Validation Error
 ```json
 {
-  "error_code": "validation_error",
   "error_name": "Validation Error",
   "error_description": "Invalid IBAN format.",
   "metadata": {
@@ -70,7 +66,6 @@ Structure is aligned with RFC 7807 – Problem Details for HTTP APIs.
 ### Idempotency Conflict
 ```json
 {
-  "error_code": "idempotency_conflict",
   "error_name": "Idempotency Conflict",
   "error_description": "Different payload detected for the same X-Request-Id within the idempotency window.",
   "metadata": {
@@ -81,7 +76,6 @@ Structure is aligned with RFC 7807 – Problem Details for HTTP APIs.
 ### Insufficient Funds
 ```json
 {
-  "error_code": "insufficient_funds",
   "error_name": "Insufficient Funds",
   "error_description": "Not enough balance to complete the operation.",
   "metadata": {
@@ -92,7 +86,6 @@ Structure is aligned with RFC 7807 – Problem Details for HTTP APIs.
 ### Server Error (generic)
 ```json
 {
-  "error_code": "internal_error",
   "error_name": "Internal Server Error",
   "error_description": "An unexpected error occurred.",
   "metadata": {
