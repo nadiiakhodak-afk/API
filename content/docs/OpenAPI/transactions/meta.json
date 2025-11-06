@@ -1,0 +1,10 @@
+{
+  "title": "Transactions",
+  "icon": "Receipt",
+  "pages": [
+    "listTransactions",
+    "getTransactionById",
+    "deliverTransactionWebhook",
+    "Webhooks"
+  ]
+}

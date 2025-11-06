@@ -1,0 +1,11 @@
+{
+  "title": "Accounts",
+  "icon": "Wallet",
+  "pages": [
+    "listAccounts",
+    "getAccountById",
+    "listIbansByAccount",
+    "issueNewIban",
+    "Webhooks"
+  ]
+}

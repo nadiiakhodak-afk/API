@@ -1,0 +1,10 @@
+{
+  "title": "OpenAPI Reference",
+  "icon": "Layers",
+  "pages": [
+    "customers",
+    "accounts",
+    "transactions",
+    "payments"
+  ]
+}

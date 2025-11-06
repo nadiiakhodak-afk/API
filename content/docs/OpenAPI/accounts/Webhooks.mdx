@@ -1,0 +1,105 @@
+---
+
+title: Webhooks — Account & IBAN Events
+---
+
+Webhooks deliver real-time notifications about account and IBAN events.
+The payload is intentionally minimal — the body contains only the entity id.
+Event type is provided via the header X-Event. After receiving a webhook, always fetch details via the corresponding GET endpoint.
+
+## Supported Events
+
+| Event                  | Description                                        | Fetch details              |
+|------------------------|----------------------------------------------------|----------------------------|
+| account.created        | New account created and activated.                 | `GET /accounts/{id}`       |
+| account.reserved       | Account structure reserved (not yet active).       | `GET /accounts/{id}`       |
+| account.status.changed | Lifecycle change (inactive reserved active closed) | `GET /accounts/{id}`       |
+| account.close          | Account closed (offboarding).                      | `GET /accounts/{id}`       |
+| account.changed        | Balance updated after posting.                     | `GET /accounts/{id}`       |
+| iban.issued            | A new IBAN issued under the account.               | `GET /accounts/{id}/ibans` |
+| iban.updated           | IBAN metadata or status changed.                   | `GET /accounts/{id}/ibans` |
+
+## Delivery and Headers
+
+Every webhook request includes the following mandatory headers:
+
+| Header       | Example                       | Description                                                        |
+|--------------|-------------------------------|--------------------------------------------------------------------|
+| X-Event      | account.created               | Specifies the event type.                                          |
+| X-Request-Id | req_9a7c4e2f                  | Unique webhook delivery identifier (for deduplication).            |
+| Date         | Wed, 05 Nov 2025 12:45:30 GMT | UTC timestamp when the webhook was generated.                      |
+| Content-Type | application/json              | Always application/json.                                           |
+
+
+## Payload Format
+
+Each webhook payload is minimal and contains only one field:
+```json
+{
+    "id": "acc_123456789"
+}
+```
+
+## Examples
+
+### Account created
+```
+POST /webhooks/accounts
+X-Event: account.created
+X-Request-Id: req_9a7c4e2f
+Date: Wed, 05 Nov 2025 12:45:30 GMT
+Content-Type: application/json
+```
+```json
+{
+"id": "acc_123456789"
+}
+```
+### Balance changed
+
+```
+POST /webhooks/accounts
+X-Event: balance.changed
+X-Request-Id: req_9a7c4e2f
+Date: Wed, 05 Nov 2025 12:45:30 GMT
+Content-Type: application/json
+```
+```json
+{
+  "id": "acc_987654321"
+}
+```
+### IBAN issued
+```
+POST /webhooks/accounts
+Content-Type: application/json
+X-Event: iban.issued
+X-Request-Id: req_73fcd
+Date: Wed, 05 Nov 2025 13:40:00 GMT
+```
+```json
+{
+  "id": "acc_456789123"
+}
+```
+## Acknowledgement and Retries
+
+- Your endpoint must respond with any 2xx HTTP status within 5 seconds.
+- If no success response is received, the webhook is retried up to 3 times within 24 hours using exponential backoff (1 min 5 min 30 min).
+- Use the X-Request-Id value to deduplicate repeated deliveries.
+
+## Security Notes
+
+- Webhooks never include personal, financial, or KYC/KYB data.
+- Payloads always contain only the entity id.
+- After receiving a webhook, always call GET `/accounts/{id}` to fetch the current state.
+
+## Recommended Handling Flow
+
+1. Receive webhook and verify signature + timestamp.
+2. Log X-Event, id, and X-Request-Id.
+3. Respond with HTTP 200 or 204.
+4. Fetch accounts details via GET `/accounts/{id}`.
+5. Apply internal business logic (update CRM, trigger workflows, analytics, etc.).
+
+

@@ -1,0 +1,10 @@
+{
+  "title": "Payments",
+  "icon": "Send",
+  "pages": [
+    "listPayments",
+    "getPaymentById",
+    "createSepaCreditTransfer",
+    "Webhooks"
+  ]
+}
