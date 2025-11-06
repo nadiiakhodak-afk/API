@@ -1,0 +1,47 @@
+---
+title: Idempotency & Safe Retries
+description: Using X-Request-Id to avoid duplicate writes
+icon: Repeat
+---
+
+To reliably trace operations and prevent accidental duplicate submissions, PaySaxas requires a unique client-supplied request identifier for all write
+operations.
+
+#### Header
+
+Each write request must include a unique identifier:
+
+`X-Request-Id: UUIDv4`
+
+> PaySaxas logs each X-Request-Id for traceability and audit purposes.
+> The same structure will be used for future idempotent write support.
+
+#### Recommended client practices
+
+- Generate a UUIDv4 per write request (POST, PUT, PATCH, DELETE).
+- Do not reuse an ID across different operations or payloads.
+- Log and propagate X-Request-Id throughout your systems to enable debugging and monitoring.
+- Retry network or timeout errors using a new X-Request-Id.
+
+
+#### Example
+```bash
+curl -X POST https://api.paysaxas.com/v1/payments \
+-H "Authorization: Bearer <ACCESS_TOKEN>" \
+-H "Content-Type: application/json" \
+-H "X-Request-Id: 550e8400-e29b-41d4-a716-446655440000" \
+-d '{
+"debtor_account_id": "acc_123",
+"amount": "100.00",
+"currency": "EUR",
+"reference": "INV-1001",
+"counterparty": {
+"iban": "FI0212030000000202051",
+"name": "ACME Oy"
+}
+}'
+```
+
+> Note:
+> Full idempotent behaviour (automatic deduplication of repeated requests with the same X-Request-Id) will be introduced in a later
+> API release.

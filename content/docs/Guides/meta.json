@@ -1,0 +1,15 @@
+{
+  "title": "Integration Guides",
+  "icon": "Compass",
+  "pages": [
+    "versioning-lifecycle",
+    "pagination",
+    "idempotency",
+    "errors",
+    "operational",
+    "openapi_postman",
+    "safeguarding",
+    "deprecation",
+    "security"
+  ]
+}

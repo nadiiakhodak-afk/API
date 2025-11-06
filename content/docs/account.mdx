@@ -1,0 +1,121 @@
+---
+title: Accounts
+description: Account lifecycle, statuses, and vIBAN operations
+icon: Banknote
+---
+
+Management of customer accounts.
+
+Each Account represents an internal ledger object linked to a verified Customer (either Individual or Business).
+Accounts are used to hold balances, process payments, and manage compliance-related activity within the PaySaxas ecosystem.
+
+#### Definition
+
+- An Account is a unique financial record within the ledger associated with one verified customer.
+- Each account is created in a single currency and has its own lifecycle and identifiers (account ID, vIBAN, status).
+- Account types define operational purpose:
+    - ***Individual Account*** — created for individual (KYC) clients.
+    - ***Business Account*** — created for corporate (KYB) clients.
+
+Relationship:
+
+- One Customer many Accounts (1:N relationship).
+- An account cannot exist without a verified customer.
+- Account identifiers are immutable once created.
+
+#### Account Opening — Payloads & Responses
+
+Process for account creation, validation, and lifecycle management.
+
+| Method | Endpoint         | Description                                                                                     |
+|--------|------------------|-------------------------------------------------------------------------------------------------|
+| POST   | /accounts        | Creates a new account for a verified customer.                                                  |
+| GET    | /accounts        | Retrieves a list of all accounts associated with the verified customer.                         |
+| GET    | `/accounts/{id}` | Retrieves detailed information about a specific account (currency, balances, status, metadata). |
+
+#### Lifecycle & Status Flow
+
+| Status   | Description / Trigger                                                                           |
+|----------|-------------------------------------------------------------------------------------------------|
+| Inactive | Initial placeholder — account record created but not yet reserved or active.                    |
+| Reserved | Account structure reserved (currency assigned, ledger entry prepared). Awaiting KYC completion. |
+| Active   | Account verified and fully operational. Customer can send and receive payments.                 |
+| Closed   | Account manually closed due to offboarding, inactivity, or compliance decision.                 |
+
+#### Account Creation Flow
+
+To successfully create an account:
+
+1. Customer must exist — only verified KYC/KYB customers are eligible.
+
+2. Required fields:
+
+    - `customer_id` — unique verified customer reference.
+    - `currency` — supported currency code (ISO 4217).
+    - `account_type` — individual or business.
+
+3. Optional fields:
+
+    - `metadata` — internal information (purpose, label, internal reference).
+
+4. Validation:
+
+    - Account cannot be duplicated for the same customer–currency pair.
+    - Invalid or unsupported currency triggers `400 VALIDATION_ERROR`.
+
+5. Result
+    - On success, a new account object is created in a reserved inactive state, depending on the configuration.
+    - After successful verification, the account transitions to or active.
+
+#### Field Validation Requirements
+
+| Field        | Type   | Required | Rules                                         |
+|--------------|--------|----------|-----------------------------------------------|
+| customer_id  | string |          | Must belong to an existing verified customer. |
+| currency     | string |          | Must be supported (ISO 4217 format).          |
+| account_type | string |          | Allowed values: Individual, business.         |
+| metadata     | object | optional | Custom parameters for internal use.           |
+#### Status Lifecycle Summary
+
+| Phase       | Statuses Included | Notes                                        |
+|-------------|-------------------|----------------------------------------------|
+| Setup       | Void Reserved     | Account structure created and validated.     |
+| Operational | Active            | Account is ready for payments and reporting. |
+| Termination | Closed            | Manual deactivation or offboarding.          |
+#### vIBANs
+
+Operations for issuing and managing virtual IBANs linked to an account.
+
+| Method | Endpoint               | Description                                                |
+|--------|------------------------|------------------------------------------------------------|
+| POST   | `/accounts/{id}/ibans` | Issues a new virtual IBAN linked to the specified account. |
+| GET    | `/accounts/{id}/ibans` | Returns all virtual IBANs associated with the account.     |
+
+IBANs are used to enable both incoming and outgoing payments for customer accounts.
+Each issued IBAN is uniquely linked to an account and can be used to receive SEPA transfers or initiate outgoing payments under the same customer
+profile.
+IBANs are generated in the Finnish format and include the relevant BIC identifier for the PaySaxas payment network.
+
+Each IBAN object contains structural and status information that allows clients to display and manage account identifiers within their own platforms.
+All IBANs issued through the API are safeguarded under the same regulatory and reconciliation rules as customer accounts.
+
+***Typical response fields include:***
+    - iban — unique Finnish IBAN assigned to the account (e.g. FI2112345600000785)
+    - bic — Bank Identifier Code (e.g. PAYSA0XXX)
+    - currency — account currency (always "EUR")
+    - status — current state of the IBAN (active, reserved, or closed)
+    - created_at — timestamp of issuance in ISO 8601 format
+Example payloads demonstrate both successful issuance and potential error cases, such as validation failures or duplicate requests.
+
+```json
+{
+"iban": "DE00PAY0000000000",
+"bic": "PAYSA0XXX",
+"currency": "EUR",
+"status": "active",
+"created_at": "2025-01-15T10:00:00Z"
+}
+```
+
+> IBAN and BIC are examples only — not real financial identifiers.
+### Webhooks (Account events)

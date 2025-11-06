@@ -1,0 +1,24 @@
+services:
+  fumadocs:
+    build:
+      context: .
+      target: dev
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PNPM_STORE_PATH: /pnpm-store
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+      FUMADOCS_WATCH: "1"
+    volumes:
+      - ./:/app
+      - pnpm-store:/pnpm-store
+    command: ["sleep", "infinity"]
+    working_dir: /app
+    tty: true
+    restart: unless-stopped
+
+volumes:
+  pnpm-store:

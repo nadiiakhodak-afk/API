@@ -1,0 +1,74 @@
+---
+title: Payments
+description: SEPA payment flows, statuses, and endpoint references
+icon: Send
+---
+PaySaxas supports incoming (SEPA IN) and outgoing (SEPA OUT) euro-denominated payments through multiple regulated partner rails.
+Processing logic and reconciliation flow may vary per rail, but all providers follow the same unified transaction model and API schema.
+Internal routing, timing, and provider-level logic remain confidential and are not exposed in API documentation.
+
+All SEPA transfers share the same compliance, audit, and AML controls.
+Manual interventions may occur in exceptional cases (e.g., AML hold, compliance review, document request, or return processing).
+
+> Provider Abstraction Notice
+> Provider names, routing logic, and SLAs are strictly internal and never exposed in any public documentation, API payload, or
+> webhook event.
+> All SEPA flows use a unified PaySaxas schema that abstracts underlying providers.
+### SEPA IN (Incoming Transfers)
+
+
+#### Automated Flow (Standard Route)
+
+Incoming SEPA credits are processed through an automated pipeline that validates account ownership, applies AML screening, and credits funds upon
+successful verification.
+
+#### Typical sequence:
+Received Account Validation AML Screening Compliance Hold (if any) Safeguard Fee Deduction Settled (Completed)
+
+- Each stage represents an internal state transition within the PaySaxas system.
+- All funds are safeguarded during compliance screening.
+- Completed transactions automatically trigger webhook notifications.
+- No manual review occurs unless a compliance flag is raised.
+### SEPA OUT (Outgoing Transfers)
+
+**Automated Flow (Standard Route)**
+
+Outgoing SEPA transfers follow an automated lifecycle from order creation to settlement or return.
+Each stage ensures AML and regulatory compliance, liquidity validation, and reconciliation.
+
+#### Typical sequence:
+Payment Created AML Screening Execution Settlement Completed
+
+- Payments are executed via approved rails under PSD2 and SEPA guidelines.
+- Failures or rejections automatically trigger status updates and webhook events.
+- No provider-specific data (e.g., BICs, routing nodes) are ever exposed.
+
+### Endpoints
+
+#### Outgoing Payments (SEPA OUT)
+
+| Method | Endpoint                        | Description                                                                                                   |
+|--------|---------------------------------|---------------------------------------------------------------------------------------------------------------|
+| POST   | /payments/sepa-credit-transfers | Creates a new outgoing SEPA Credit Transfer. Requires a JWS signature for authentication.                     |
+| GET    | /payments                       | Retrieves a list of outgoing payments filtered by parameters (status, date, accountId, type).                 |
+| GET    | `/payments/{id}`                | Returns detailed information about a specific outgoing payment (amount, status, EPC reason code, timestamps). |
+
+#### Incoming Payments (SEPA IN)
+
+| Method | Endpoint             | Description                                                                                                                        |
+|--------|----------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| GET    | /transactions        | Lists all incoming transactions (SEPA IN, internal transfers, refunds). Supports filters by account, date range, type, and status. |
+| GET    | `/transactions/{id}` | Retrieves full transaction details by transaction ID, including status, amount, currency, and reference.                           |
+
+> Incoming SEPA transfers are created automatically upon receipt from partner banks and are read-only in the API.
+
+#### Webhooks (Payment & Transaction Events)
+
+### How SEPA Flows Appear in API
+
+| Flow Type          | API Section                            | Endpoint Family | Webhook Events                                                     | Data Visibility                   |
+|--------------------|----------------------------------------|-----------------|--------------------------------------------------------------------|-----------------------------------|
+| SEPA IN            | /transactions                          | Read-only       | transaction.received                                               | Balance and history only          |
+| SEPA OUT           | /payments                              | Read/Write      | payment.created, payment.settled, payment.failed, payment.returned | Status, reason, reference, amount |
+| Export / Reporting | /transactions/export, /payments/export |                 |                                                                    | Read-only — Aggregated statements |
+| Async Monitoring   | /webhooks — All events above           |                 |                                                                    | Only entity IDs                   |

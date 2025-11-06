@@ -1,0 +1,42 @@
+---
+title: Versioning & Lifecycle
+description: How PaySaxas versions its API and communicates change windows
+icon: BookOpen
+---
+
+PaySaxas API uses versioning to ensure backward compatibility and predictable integration for all clients.
+Each version introduces improvements or new functionality while maintaining stability for existing implementations.
+
+## Versioning strategy
+
+All API endpoints are versioned using a clear and consistent structure (for example, /v1/, /v2/, etc.).
+Each version represents a defined stage of the API lifecycle — from initial release to deprecation.
+
+## Specifying the version
+
+Clients specify the API version via the URL path:
+
+`https://api.paysaxas.com/v1/...`
+
+> Only URL-based versioning is supported in PaySaxas API.
+> This approach ensures simplicity, transparency, and compatibility across all client environments.
+
+## Deprecation policy
+
+When a version is scheduled for deprecation, PaySaxas provides advance notice through:
+
+- Developer updates and release notes.
+- Deprecation warnings in API responses (e.g., custom headers or metadata fields).
+
+Deprecated versions remain available for a defined transition period before being retired.
+
+> Clients are expected to monitor release notes and migrate to newer versions as part of their regular maintenance cycle.
+
+#### Version announcements
+
+New API versions, feature releases, and deprecation timelines are announced via official PaySaxas communication channels, including:
+
+- API documentation changelogs
+- Developer newsletters
+- Email notifications
+- Platform update pages

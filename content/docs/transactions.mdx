@@ -1,0 +1,40 @@
+---
+title: Transactions
+description: Transaction lifecycle, statuses, and read-only endpoints
+icon: Receipt
+---
+
+The Transactions API provides a read-only history of all financial movements — incoming and outgoing.
+Each transaction belongs to an account, which belongs to a verified customer.
+Transactions are immutable and safely abstracted from internal provider logic.
+
+### Unified Lifecycle (Abstracted from Provider Workflows)
+
+PaySaxas integrates multiple regulated payment providers.
+Each provider (e.g., SEPA IN/OUT gateways, internal ledgers) has its own routing, AML, and exception flow.
+However, the public API exposes a single normalised status model:
+
+| Status | Description |
+| --- | --- |
+| pending | Transaction created and awaiting confirmation. |
+| in_progress | Processing by payment rails or internal ledger. |
+| completed | Funds successfully settled. |
+| failed | Payment rejected or not processed. |
+| reversed | Transaction refunded, reversed, or returned. |
+
+> Internal routing (e.g., “AML Review”, “Finance Freeze”, “Settlement Exception”) is never exposed in API responses.
+> Provider-specific transitions are aggregated into these unified statuses.
+
+### Endpoints
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | /transactions | Returns a list of transactions filtered by parameters. |
+| GET | `/transactions/{id}` | Returns full transaction details. |
+
+| Method | Endpoint | Link |
+| --- | --- | --- |
+| GET | /transactions | GET /transactions — List Transactions |
+| GET | `/transactions/{id}` | GET `/transactions/{id}` — Retrieve Transaction Details |
+
+### Webhooks — Transaction Events

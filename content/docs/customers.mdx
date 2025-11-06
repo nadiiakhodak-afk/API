@@ -1,0 +1,96 @@
+---
+title: Customers
+description: Customer lifecycle, onboarding, and API operations
+icon: Users
+---
+
+#### Overview
+
+The Customers API manages personal (B2C) and business (B2B) clients within the PaySaxas ecosystem.
+Each customer represents a verified legal entity or natural person and has its own lifecycle, verification flow, and compliance context.
+
+> ***Multi-Entity Access Model***
+> A single login (email) can control multiple onboarded profiles:
+>
+> - ***Individual*** profile ( type: individual) — verified via KYC.
+> - ***Business*** profile(s) (type: business) — verified via KYB.
+Each profile receives its own , verification session, accounts, and webhook audit trail. customer_id
+Data, accounts, and transactions are isolated per profile and never shared between and business contexts. individual
+Switching between profiles in the dashboard changes operational scope only — not data ownership.
+
+#### References
+
+<a href="https://www.fatf-gafi.org/content/dam/fatf-gafi/guidance/Guidance-on-Digital-Identity.pdf" target="_blank" rel="noopener noreferrer">
+    - FATF Guidance on Digital ID (2020)
+</a>
+
+<a href="https://www.eba.europa.eu/sites/default/files/document_library/Publications/Guidelines/2021/963637/Final%20Report%20on%20Guidelines%20on%20revised%20ML%20TF%20Risk%20Factors.pdf" target="_blank" rel="noopener noreferrer">
+    - EBA Guidelines on Customer Due Diligence (EBA/GL/2021/02)
+</a>
+
+
+### Customer Process Flow & Statuses
+
+This section describes the full lifecycle of a Customer within the PaySaxas system — from pre-registration to active client status, including compliance
+reviews, rejection cases, and offboarding.
+Flows differ for Individual and Corporate clients but follow the same regulatory and technical logic.
+
+Lifecycle Separation:
+
+> Individual customers move automatically through verification (auto transitions).
+> Corporate customers require manual actions for each step (manual transitions).
+> Each status change generates an auditable event and a webhook notification per customer_id.
+
+### 2. Event Traceability
+
+Each status change triggers an auditable event and webhook notification:
+Contains only the unique customer identifier — no PII, statuses, or metadata are exposed.
+
+
+```json
+{
+  "event": "customer.status.changed",
+  "data": {
+    "id": "cust_92f3e1b9"
+  }
+}
+```
+
+Notes:
+
+- Webhooks contain no PII.
+- Signed using HMAC SHA-256 per RFC 2104.
+- Delivery retries up to 24h (max 3 attempts).
+- All transitions are logged immutably and are auditable by Compliance.
+
+### 3. Naming Convention
+
+> Status values use lowercase snake_case.
+> type field defines customer flow (individual or business).
+
+```json
+{
+  "id": "cust_8b29e3",
+  "type": "business",
+  "status": "compliance_pending",
+  "created_at": "2025-10-30T10:31:00Z"
+}
+```
+
+### 4. Endpoints
+
+| Method | Endpoint          | Description                                     | Success     | Typical Errors                                                                                             |
+|--------|-------------------|-------------------------------------------------|-------------|------------------------------------------------------------------------------------------------------------|
+| POST   | /customers        | Create a new customer (individual or business). | 201 Created | 400 VALIDATION_ERROR, 401 UNAUTHORIZED, 403 INSUFFICIENT_PERMISSIONS, 409 DUPLICATE_CUSTOMER               |
+| GET    | /customers        | Retrieve a paginated list of customers.         | 200 OK      | 400 VALIDATION_ERROR, 401 UNAUTHORIZED, 403 INSUFFICIENT_PERMISSIONS                                       |
+| GET    | `/customers/{id}` | Retrieve customer details.                      | 200 OK      | 400 VALIDATION_ERROR, 401 UNAUTHORIZED, 403 INSUFFICIENT_PERMISSIONS, 404 CUSTOMER_NOT_FOUND               |
+| PATCH  | `/customers/{id}` | Update customer metadata or internal notes.     | 200 OK      | 400 VALIDATION_ERROR, 401 UNAUTHORIZED, 403 INSUFFICIENT_PERMISSIONS, 404 CUSTOMER_NOT_FOUND, 409 CONFLICT |
+
+#### Scopes
+
+- `customers:read` — list / retrieve
+- `customers:write` — create / update
+
+**Idempotency Header:** `X-Request-Id: <UUIDv4>`
+
+### Webhooks — Customer Events

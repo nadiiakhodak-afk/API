@@ -1,0 +1,75 @@
+---
+title: Pagination
+description: How to navigate large datasets returned by the PaySaxas API
+icon: ListFilter
+---
+
+PaySaxas API uses cursor-based pagination to efficiently handle large result sets and ensure consistent responses when listing resources.
+
+## Purpose
+Standardise how large datasets are retrieved and paginated in API responses.
+
+## Supported Pagination Styles
+| Style        | Parameters        | When to use                                                                                          |
+|--------------|-------------------|------------------------------------------------------------------------------------------------------|
+| Cursor-based | `cursor`, `limit` | Preferred for frequently changing or high-volume datasets. Ensures stable ordering between requests. |
+
+
+## Common Query Parameters
+| Parameter                              | Type            | Applies to                                  | Description / Example                                                                                               |
+|----------------------------------------|-----------------|---------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
+| `limit`                                | integer         | all                                         | Max items per page (`default: 20`, `max: 100`). Example: `?limit=50`.                                               |
+| `cursor`                               | string          | all (cursor pagination)                     | Encoded pointer to the next page. Example: `?cursor=eyJpZCI6IjEyMyJ9`.                                              |
+
+Example request
+```
+GET /v1/accounts?limit=
+```
+Response
+
+```json
+{
+  "data": [
+    {
+      "id": "acc_002",
+      "iban": "FI02PAY000000000002",
+      "status": "active",
+      "created_at": "2025-10-21T10:30:45Z"
+    },
+    {
+      "id": "acc_001",
+      "iban": "FI02PAY000000000001",
+      "status": "active",
+      "created_at": "2025-10-20T14:18:12Z"
+    }
+  ],
+  "pagination": {
+    "next_cursor": "eyJpZCI6ImZpbnBheTAwMDAwMDAwMDAxIn0=",
+    "has_more": true,
+    "page_size": 2
+  }
+}
+```
+>Security Note:
+>All identifiers (id, iban, cursor) are non-sensitive placeholders.
+>Real account or IBAN values are never exposed in documentation, examples, or logs.
+>Only structural patterns are demonstrated.
+
+## Pagination metadata
+| Field                      | Type    | Description                                                                    |
+|----------------------------|---------|--------------------------------------------------------------------------------|
+| next_cursor                | string  | Encoded pointer to request the next page. Example: ```?cursor=<next_cursor>``` |
+| previous_cursor (optional) | string  | Encoded pointer to request the previous page (if supported).                   |
+| has_more (optional)        | boolean | Indicates if additional pages exist.                                           |
+| page_size (optional)       | integer | Number of items returned in this response.                                     |
+
+
+## Best Practices for Integrators
+1. Always use cursor and limit parameters for paginated results.
+2. Do not combine offset and cursor in any request.
+3. Validate that limit stays within the allowed range (default: 20, max: 100).
+4. Always check for next_cursor in responses before fetching the next page.
+5. Use created_after and created_before for date range filters.
+6. Use UTC timestamps in ISO 8601 format
+7. Avoid exposing cursor tokens in client-side URLs, logs, or analytics.
+8. When exporting large datasets, prefer asynchronous or paginated exports.

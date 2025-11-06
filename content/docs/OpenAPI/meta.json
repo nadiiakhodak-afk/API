@@ -1,0 +1,9 @@
+{
+  "title": "OpenAPI Reference",
+  "icon": "Code",
+  "defaultOpen": false,
+  "pages": [
+    "Accounts",
+    "Payments"
+  ]
+}

@@ -1,0 +1,474 @@
+openapi: 3.0.3
+info:
+    title: PaySaxas Open Banking API (Basic Scope)
+    version: "1.0.0"
+    description: |
+        Специфікація складена з офіційної сторінки PaySaxas OpenAPI.
+        Базова структура: https://mb5openapi.{hostname}/{version}/{type}/{command}
+        Усі методи — POST з JSON у тілі. Формат дат: YYYYMMDD.
+servers:
+    - url: https://mb5openapi.{hostname}/{version}
+      variables:
+          hostname:
+              default: example.com
+              description: Домен ASPSP
+          version:
+              default: v100
+              description: Версія API у форматі vxxx
+security:
+    - bearerAuth: []
+components:
+    securitySchemes:
+        bearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+        mutualTLS:
+            type: mutualTLS
+    schemas:
+        EmptyObject:
+            type: object
+            additionalProperties: false
+            description: Порожній об'єкт (ендпоінт без параметрів)
+        AccountSummary:
+            type: object
+            properties:
+                id: { type: integer }
+                designation: { type: string, description: "Account number або IBAN" }
+                description: { type: string }
+                currency: { type: string, description: "ISO 4217, напр. USD, EUR" }
+                currency_code: { type: integer, description: "Внутрішній код валюти" }
+                active: { type: boolean }
+                blockdebit: { type: boolean }
+                blockcredit: { type: boolean }
+                closed: { type: boolean }
+            required: [id, designation, currency]
+        AccountDetails:
+            type: object
+            properties:
+                accountid: { type: integer }
+                designation: { type: string }
+                currency: { type: string }
+                currency_code: { type: string }
+                balance: { type: number }
+                plan_balance: { type: number }
+                balancebc: { type: number }
+                thedate: { type: string, pattern: "^[0-9]{8}$" }
+                available_amount: { type: number }
+                overdraft_amount: { type: number }
+                overdraft_limit: { type: number }
+                balance_ib: { type: number }
+                favorite: { type: boolean }
+                customdescription: { type: string, nullable: true }
+            required: [accountid, designation, currency]
+        StatementItem:
+            type: object
+            properties:
+                "#idnty": { type: integer }
+                "#transactionid": { type: integer }
+                thedate: { type: string, pattern: "^[0-9]{8}$" }
+                designation: { type: string }
+                description: { type: string }
+                currcodechr: { type: string }
+                amtdebit: { type: number, nullable: true }
+                amtcredit: { type: number, nullable: true }
+                "#amtdebitbc": { type: number, nullable: true }
+                "#amtcreditbc": { type: number, nullable: true }
+                amount: { type: number }
+                "#amountbc": { type: number }
+                balance: { type: number }
+                "#balancebc": { type: number }
+                docnumber: { type: integer }
+                src: { type: string }
+                info: { type: string }
+                reference: { type: string }
+                "#completed": { type: integer, description: "0 — віртуальна, 1 — реальна" }
+                "#revaluation": { type: integer }
+                documentid: { type: integer }
+                "#auser": { type: string }
+                "#key": { type: integer }
+        TransactionDetails:
+            allOf:
+                - $ref: "#/components/schemas/StatementItem"
+        ConsentStatus:
+            type: object
+            properties:
+                status:
+                    type: integer
+                    description: "0 — немає згоди, 1 — згода надана"
+            required: [status]
+        OperationResult:
+            type: object
+            properties:
+                result:
+                    type: integer
+                    description: "0 — невдача, 1 — успіх"
+            required: [result]
+        CreatePaymentRequest:
+            type: object
+            properties:
+                documenttype:
+                    type: string
+                    enum: [Outgoing_Payment_FReq, Outgoing_SEPAPAY_FReq]
+                data:
+                    oneOf:
+                        - $ref: "#/components/schemas/SwiftPaymentData"
+                        - $ref: "#/components/schemas/SepaPaymentData"
+            required: [documenttype, data]
+        SwiftPaymentData:
+            type: object
+            properties:
+                debitaccountid: { type: integer }
+                amount: { type: number }
+                currencyid: { type: integer }
+                info: { type: string }
+                extaccountnumber: { type: string }
+                benefname: { type: string }
+                registrationnumber: { type: string }
+                benefcountry: { type: integer, description: "ISO 3166-1 alpha-2 як код країни (внутр. представлення)" }
+                benefaddress: { type: string }
+                tariffamount: { type: number }
+                totalamount: { type: number }
+                chargestype: { type: integer }
+                prioritet: { type: integer }
+                extbankswift: { type: string }
+                extbankname: { type: string }
+                extbenefbankcountry: { type: integer }
+                extbankaddress: { type: string }
+            required: [debitaccountid, amount, currencyid, extaccountnumber, benefname]
+        SepaPaymentData:
+            type: object
+            properties:
+                debitaccountid: { type: integer }
+                amount: { type: number }
+                currencyid: { type: integer }
+                info: { type: string }
+                extaccountnumber: { type: string }
+                benefname: { type: string }
+                registrationnumber: { type: string }
+                benefcountry: { type: integer }
+                external_account: { type: string }
+                benefaddress: { type: string }
+                extbankswift: { type: string }
+                extbankname: { type: string }
+                extbenefbankcountry: { type: integer }
+                extbankaddress: { type: string }
+            required: [debitaccountid, amount, currencyid, extaccountnumber, benefname]
+        CreatePaymentResponse:
+            type: object
+            properties:
+                result: { type: integer, description: "0 — не створено, 1 — створено" }
+                fieldErrors:
+                    type: array
+                    items:
+                        type: object
+                        additionalProperties: true
+                message: { type: string }
+                objectid: { type: integer, description: "ID створеного платежу" }
+            required: [result]
+        PaymentListItem:
+            type: object
+            properties:
+                paymentid: { type: integer }
+                documenttype:
+                    type: string
+                    enum: [Outgoing_Payment_FReq, Outgoing_SEPAPAY_FReq]
+                data:
+                    oneOf:
+                        - $ref: "#/components/schemas/SwiftPaymentData"
+                        - $ref: "#/components/schemas/SepaPaymentData"
+                thedate: { type: string, pattern: "^[0-9]{8}$" }
+                statusdescription: { type: string }
+        CheckFundsRequest:
+            type: object
+            properties:
+                account: { type: string, description: "Account number або IBAN" }
+                amount: { type: string }
+                currency: { type: string, description: "ISO 4217" }
+            required: [account, amount, currency]
+    responses:
+        CommonErrors:
+            description: Типові коди помилок
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        additionalProperties: true
+            headers: {}
+paths:
+    /accounts/getaccounts:
+        post:
+            summary: Отримати список рахунків PSU
+            tags: [Accounts]
+            requestBody:
+                required: false
+                content:
+                    application/json:
+                        schema: { $ref: "#/components/schemas/EmptyObject" }
+            responses:
+                "200":
+                    description: Список рахунків
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { $ref: "#/components/schemas/AccountSummary" }
+                "400": { $ref: "#/components/responses/CommonErrors" }
+                "401": { $ref: "#/components/responses/CommonErrors" }
+                "403": { $ref: "#/components/responses/CommonErrors" }
+                "405": { $ref: "#/components/responses/CommonErrors" }
+                "415": { $ref: "#/components/responses/CommonErrors" }
+                "422": { $ref: "#/components/responses/CommonErrors" }
+                "429": { $ref: "#/components/responses/CommonErrors" }
+                "500": { $ref: "#/components/responses/CommonErrors" }
+                "501": { $ref: "#/components/responses/CommonErrors" }
+                "503": { $ref: "#/components/responses/CommonErrors" }
+    /accounts/getaccount:
+        post:
+            summary: Деталі одного рахунку
+            tags: [Accounts]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                account: { type: string }
+                                currency: { type: string }
+                            required: [account, currency]
+            responses:
+                "200":
+                    description: Деталі рахунку
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/AccountDetails" }
+                "400": { $ref: "#/components/responses/CommonErrors" }
+                "401": { $ref: "#/components/responses/CommonErrors" }
+                "403": { $ref: "#/components/responses/CommonErrors" }
+                "405": { $ref: "#/components/responses/CommonErrors" }
+                "415": { $ref: "#/components/responses/CommonErrors" }
+                "422": { $ref: "#/components/responses/CommonErrors" }
+                "429": { $ref: "#/components/responses/CommonErrors" }
+                "500": { $ref: "#/components/responses/CommonErrors" }
+                "501": { $ref: "#/components/responses/CommonErrors" }
+                "503": { $ref: "#/components/responses/CommonErrors" }
+    /accounts/getstatement:
+        post:
+            summary: Виписка за період
+            tags: [Accounts]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                account: { type: string }
+                                beginDate: { type: string, pattern: "^[0-9]{8}$" }
+                                endDate: { type: string, pattern: "^[0-9]{8}$" }
+                            required: [account, beginDate, endDate]
+            responses:
+                "200":
+                    description: Масив транзакцій
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { $ref: "#/components/schemas/StatementItem" }
+                "400": { $ref: "#/components/responses/CommonErrors" }
+                "401": { $ref: "#/components/responses/CommonErrors" }
+                "403": { $ref: "#/components/responses/CommonErrors" }
+                "405": { $ref: "#/components/responses/CommonErrors" }
+                "415": { $ref: "#/components/responses/CommonErrors" }
+                "422": { $ref: "#/components/responses/CommonErrors" }
+                "429": { $ref: "#/components/responses/CommonErrors" }
+                "500": { $ref: "#/components/responses/CommonErrors" }
+                "501": { $ref: "#/components/responses/CommonErrors" }
+                "503": { $ref: "#/components/responses/CommonErrors" }
+    /accounts/gettransaction:
+        post:
+            summary: Деталі конкретної транзакції
+            tags: [Accounts]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                account: { type: string }
+                                transactionid: { type: integer }
+                            required: [account, transactionid]
+            responses:
+                "200":
+                    description: Деталі транзакції
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/TransactionDetails" }
+                "400": { $ref: "#/components/responses/CommonErrors" }
+                "401": { $ref: "#/components/responses/CommonErrors" }
+                "403": { $ref: "#/components/responses/CommonErrors" }
+                "405": { $ref: "#/components/responses/CommonErrors" }
+                "415": { $ref: "#/components/responses/CommonErrors" }
+                "422": { $ref: "#/components/responses/CommonErrors" }
+                "429": { $ref: "#/components/responses/CommonErrors" }
+                "500": { $ref: "#/components/responses/CommonErrors" }
+                "501": { $ref: "#/components/responses/CommonErrors" }
+                "503": { $ref: "#/components/responses/CommonErrors" }
+    /accounts/checkconsent:
+        post:
+            summary: Перевірити наявність згоди PSU
+            tags: [Accounts]
+            requestBody:
+                required: false
+                content:
+                    application/json:
+                        schema: { $ref: "#/components/schemas/EmptyObject" }
+            responses:
+                "200":
+                    description: Статус згоди
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/ConsentStatus" }
+                "400": { $ref: "#/components/responses/CommonErrors" }
+                "401": { $ref: "#/components/responses/CommonErrors" }
+                "403": { $ref: "#/components/responses/CommonErrors" }
+    /accounts/deleteconsent:
+        post:
+            summary: Видалити згоду PSU
+            tags: [Accounts]
+            requestBody:
+                required: false
+                content:
+                    application/json:
+                        schema: { $ref: "#/components/schemas/EmptyObject" }
+            responses:
+                "200":
+                    description: Результат видалення
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/OperationResult" }
+                "400": { $ref: "#/components/responses/CommonErrors" }
+                "401": { $ref: "#/components/responses/CommonErrors" }
+                "403": { $ref: "#/components/responses/CommonErrors" }
+    /payments/createpayment:
+        post:
+            summary: Створити платіж (SWIFT або SEPA)
+            tags: [Payments]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: "#/components/schemas/CreatePaymentRequest" }
+            responses:
+                "200":
+                    description: Результат створення
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/CreatePaymentResponse" }
+                "400": { $ref: "#/components/responses/CommonErrors" }
+                "401": { $ref: "#/components/responses/CommonErrors" }
+                "403": { $ref: "#/components/responses/CommonErrors" }
+                "422": { $ref: "#/components/responses/CommonErrors" }
+    /payments/getpayments:
+        post:
+            summary: Отримати список платежів за період
+            tags: [Payments]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                account: { type: string }
+                                beginDate: { type: string, pattern: "^[0-9]{8}$" }
+                                endDate: { type: string, pattern: "^[0-9]{8}$" }
+                            required: [account, beginDate, endDate]
+            responses:
+                "200":
+                    description: Масив платежів
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { $ref: "#/components/schemas/PaymentListItem" }
+                "400": { $ref: "#/components/responses/CommonErrors" }
+                "401": { $ref: "#/components/responses/CommonErrors" }
+                "403": { $ref: "#/components/responses/CommonErrors" }
+    /payments/getpayment:
+        post:
+            summary: Деталі конкретного платежу
+            tags: [Payments]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                paymentID: { type: integer }
+                            required: [paymentID]
+            responses:
+                "200":
+                    description: Деталі платежу
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        oneOf:
+                                            - $ref: "#/components/schemas/SwiftPaymentData"
+                                            - $ref: "#/components/schemas/SepaPaymentData"
+                "400": { $ref: "#/components/responses/CommonErrors" }
+                "401": { $ref: "#/components/responses/CommonErrors" }
+                "403": { $ref: "#/components/responses/CommonErrors" }
+    /payments/cancelpayment:
+        post:
+            summary: Скасувати непроведений платіж
+            tags: [Payments]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                account: { type: string }
+                                paymentID: { type: integer }
+                            required: [account, paymentID]
+            responses:
+                "200":
+                    description: Результат скасування
+                    content:
+                        application/json:
+                            schema: { $ref: "#/components/schemas/OperationResult" }
+                "400": { $ref: "#/components/responses/CommonErrors" }
+                "401": { $ref: "#/components/responses/CommonErrors" }
+                "403": { $ref: "#/components/responses/CommonErrors" }
+    /confirmation/checkfunds:
+        post:
+            summary: Підтвердження наявності коштів
+            tags: [Confirmation]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: "#/components/schemas/CheckFundsRequest" }
+            responses:
+                "200":
+                    description: Результат перевірки
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    result:
+                                        type: integer
+                                        description: "0 — недостатньо, 1 — достатньо"
+                                required: [result]
+                "400": { $ref: "#/components/responses/CommonErrors" }
+                "401": { $ref: "#/components/responses/CommonErrors" }
+                "403": { $ref: "#/components/responses/CommonErrors" }

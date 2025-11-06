@@ -1,0 +1,118 @@
+---
+title: Security & Signing
+description: OAuth token flow, scopes, and error responses
+icon: ShieldCheck
+---
+
+## Authentication (OAuth 2.1)
+
+PaySaxas API uses OAuth 2.1 with the Client Credentials grant for server-to-server integrations. Clients obtain a short-lived access token and include it
+in the Authorization header of each request.
+
+#### Token endpoint
+
+```http
+POST /oauth/token
+Content-Type: application/json
+```
+
+#### Request body
+
+```json
+{
+"client_id": "YOUR_CLIENT_ID",
+"client_secret": "YOUR_CLIENT_SECRET",
+"grant_type": "client_credentials",
+"scope": "accounts:read payments:write"
+}
+```
+
+> client_secret is a placeholder. Never include secrets in logs, URLs, screenshots, or client-side code.
+
+#### Successful response
+
+```json
+{
+"access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+"token_type": "Bearer",
+"expires_in": 3600,
+"scope": "accounts:read payments:write"
+}
+```
+
+> access_token — token to use in API calls.
+> token_type — always Bearer.
+> expires_in — token lifetime in seconds (short-lived; check this value in the response).
+> scope — granted scopes.
+
+> Note: The Client Credentials grant does not issue refresh or reset tokens.
+> When the access token expires, request a new one using the same client credentials.
+
+#### Using the token
+
+Include the token in the Authorization header:
+
+`Authorization: Bearer <access_token>`
+
+##### cURL example
+
+```bash
+curl -X POST https://api.paysaxas.com/oauth/token \\
+-H "Content-Type: application/json" \\
+-d '{
+"client_id":"YOUR_CLIENT_ID",
+"client_secret":"YOUR_CLIENT_SECRET",
+"grant_type":"client_credentials",
+"scope":"accounts:read payments:write"
+}'
+```
+
+#### Scopes
+
+Scopes restrict API access to the minimum required permissions. Example scopes:
+
+- accounts:read
+- accounts:write
+- payments:read
+- payments:write
+
+Requests to endpoints outside the granted scopes will be rejected.
+
+#### Token lifetime & refresh
+
+- Access tokens are short-lived. Use the expires_in value to determine expiry.
+- For server-to-server flows, obtain a new token by calling POST /oauth/token again when the current token expires (refresh tokens are not  issued for the Client Credentials grant).
+
+#### Error handling
+
+> 401 UNAUTHORIZED — missing, invalid, or expired token:
+```json
+{
+"error": "unauthorized",
+"error_description": "Invalid or expired access token"
+}
+```
+
+> 400 INVALID_CLIENT — incorrect or unknown client credentials:
+```json
+{
+"error": "invalid_client",
+"error_description": "Client authentication failed"
+}
+```
+
+> 400 INVALID_SCOPE — unknown or disallowed scope:
+```json
+{
+"error": "invalid_scope",
+"error_description": "One or more scopes are not permitted"
+}
+```
+
+> 403 INSUFFICIENT_PERMISSIONS — valid token, but missing required permission or scope:
+```json
+{
+"error": "insufficient_permissions",
+"error_description": "Token scope does not permit this action"
+}
+```

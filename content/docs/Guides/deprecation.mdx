@@ -1,0 +1,59 @@
+---
+title: Deprecation Policy
+description: Deprecation timelines, communication, and client responsibilities
+icon: Megaphone
+---
+This section defines the process of retiring old API versions or endpoints.
+Deprecation ensures backward compatibility while allowing PaySaxas to introduce new features, improve security, and maintain compliance.
+
+##### Minimum Notice Period
+
+A minimum deprecation notice period of 90 days is provided before any API version or endpoint is retired.
+During this period, all existing integrations continue to function normally. Clients are expected to plan migration to the latest version before the announced
+sunset date.
+
+##### Communication Channels
+
+All deprecation announcements are delivered through official communication channels:
+
+- Email notifications to registered developers and administrators
+- Dashboard or in-app alerts within the client portal
+- API response headers indicating deprecation status
+- Updates in release notes and API changelog
+
+Each announcement clearly states the affected version or endpoint, the sunset timeline, and the link to the official documentation page with migration
+instructions.
+
+##### Deprecation Header Example
+
+When an endpoint is marked for deprecation, API responses include standard HTTP headers:
+
+```http
+Deprecation: true
+Sunset: Tue, 24 Dec 2025 00:00:00 GMT
+Link: <https://docs.paysaxas.com/deprecations>; rel="deprecation"
+```
+
+- Deprecation: Indicates that the endpoint or version is scheduled for deprecation.
+- Sunset: Specifies the date and time when the deprecated endpoint will be permanently removed.
+- Link: Provides a reference to the detailed deprecation notice and migration guide.
+
+##### Deprecation Phases
+
+The deprecation process follows four structured phases to ensure a smooth transition:
+
+- Announcement — The affected endpoint or version is marked as deprecated, and clients are notified via all official channels.
+- Support — The deprecated version remains fully operational but receives only critical bug and security fixes.
+- Sunset — Limited functionality period. Warnings may appear in API responses, and non-critical support may cease.
+- Removal — The version or endpoint is fully disabled and no longer available in production.
+
+##### Client Responsibilities
+
+Clients are expected to:
+
+- Monitor PaySaxas release notes and deprecation announcements regularly.
+- Migrate integrations to the latest supported API version before the Sunset phase.
+- Update SDKs, webhooks, and internal references to ensure continued compatibility.
+- Validate all business-critical flows in staging before switching to the new version.
+
+Failure to migrate before the removal date may result in service interruption for deprecated endpoints.

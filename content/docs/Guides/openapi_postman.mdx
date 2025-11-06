@@ -1,0 +1,115 @@
+---
+title: OpenAPI / Postman
+description: Downloads and quick-start steps for PaySaxas OpenAPI specs and Postman collection
+icon: Download
+---
+
+Tools to speed up integration with the PaySaxas API.
+All files are versioned and match the latest public API release.
+
+#### Downloads
+
+- Postman collection: `/downloads/paysaxas.postman_collection.json`
+- OpenAPI schema (YAML): `/downloads/paysaxas.openapi.yaml`
+- OpenAPI schema (JSON): `/downloads/paysaxas.openapi.json`
+
+#### Using the OpenAPI
+
+- The schema fully describes all endpoints, parameters, and response models.
+- Each change in the public API is versioned and reflected in the OpenAPI definition.
+- Use the schema in Postman, Swagger UI, or any compatible client.
+
+#### Postman — Quick Start
+
+- Download the collection.
+- In Postman: go to Import File select paysaxas.postman_collection.json.
+- Create an Environment with variables (example):
+
+```text
+baseUrl = https://api.paysaxas.com
+client_id = YOUR_CLIENT_ID
+client_secret = YOUR_CLIENT_SECRET
+access_token = <filled after auth>
+```
+
+- Obtain a token using POST /oauth/token (Client Credentials).
+- Run requests — Postman will automatically inject
+  `Authorization: Bearer {{access_token}}.`
+
+#### cURL Examples
+
+##### Obtain token
+
+```bash
+curl -X POST https://api.paysaxas.com/oauth/token \
+-H "Content-Type: application/json" \
+-d '{
+"client_id": "YOUR_CLIENT_ID",
+"client_secret": "YOUR_CLIENT_SECRET",
+"grant_type": "client_credentials",
+"scope": "accounts:read"
+}'
+```
+
+##### List accounts
+
+```bash
+curl -X GET https://api.paysaxas.com/v1/accounts \
+-H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+Example response:
+
+```json
+{
+"data": [
+{
+"id": "acc_001",
+"status": "active",
+"currency": "EUR",
+"created_at": "2025-10-21T10:30:45Z"
+},
+{
+"id": "acc_002",
+"status": "active",
+"currency": "EUR",
+"created_at": "2025-10-20T14:18:12Z"
+}
+],
+"pagination": {
+"next_cursor": "eyJpZCI6ImFjYzAwMiJ9",
+"has_more": true,
+"page_size": 2
+}
+}
+```
+
+##### Create payment (idempotent)
+
+```bash
+curl -X POST https://api.paysaxas.com/v1/payments \
+-H "Authorization: Bearer <ACCESS_TOKEN>" \
+-H "Content-Type: application/json" \
+-H "X-Request-Id: <UUIDv4>" \
+-d '{
+"debtor_account_id": "acc_123",
+"amount": "100.00",
+"currency": "EUR",
+"reference": "INV-1001",
+"counterparty": {
+"iban": "FI2112345600000785",
+"name": "ACME Oy"
+}
+}'
+```
+
+Example response:
+
+```json
+{
+"id": "pay_001",
+"status": "pending",
+"amount": "100.00",
+"currency": "EUR"
+}
+```
