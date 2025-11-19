@@ -3,19 +3,26 @@ title: Payments
 description: SEPA payment flows, statuses, and endpoint references
 icon: Send
 ---
-PaySaxas supports incoming (SEPA IN) and outgoing (SEPA OUT) euro-denominated payments through multiple regulated partner rails.
-Processing logic and reconciliation flow may vary per rail, but all providers follow the same unified transaction model and API schema.
-Internal routing, timing, and provider-level logic remain confidential and are not exposed in API documentation.
+PaySaxas supports incoming and outgoing euro-denominated payments through **two SEPA rails**:
+- **SEPA Credit Transfer (SEPA CT)**
+- **SEPA Instant Credit Transfer (SCT Inst)**
 
-All SEPA transfers share the same compliance, audit, and AML controls.
-Manual interventions may occur in exceptional cases (e.g., AML hold, compliance review, document request, or return processing).
+Internal routing, provider logic, reconciliation timing, and AML-specific flows remain strictly internal and are not exposed in the API.
 
-> Provider Abstraction Notice
-> Provider names, routing logic, and SLAs are strictly internal and never exposed in any public documentation, API payload, or
-> webhook event.
-> All SEPA flows use a unified PaySaxas schema that abstracts underlying providers.
+All SEPA transfers follow a **unified transaction model**, a **normalised status lifecycle**, and the same compliance and audit controls.
+
+Manual interventions may occur in exceptional cases (e.g. compliance review, AML flags, document request, return processing)
+
+#### Provider Abstraction Notice
+
+Provider names, routing tables, and SLAs are strictly internal and **never exposed** in public API documentation, payloads, or webhook events.
+All SEPA transfers (SEPA CT and SEPA Instant) use a unified PaySaxas schema that abstracts away all underlying providers.
 
 ### SEPA IN (Incoming Transfers)
+
+Incoming SEPA credits are automatically created once received from partner banks.
+Funds are posted only after ownership validation, screening, and reconciliation.
+
 #### Automated Flow (Standard Route)
 
 Incoming SEPA credits are processed through an automated pipeline that validates account ownership, applies AML screening, and credits funds upon
@@ -24,42 +31,57 @@ successful verification.
 #### Typical sequence:
 Received -> Account Validation -> AML Screening -> Compliance -> Hold (if any) -> Safeguard -> Fee Deduction -> Settled (Completed)
 
-- Each stage represents an internal state transition within the PaySaxas system.
-- All funds are safeguarded during compliance screening.
-- Completed transactions automatically trigger webhook notifications.
-- No manual review occurs unless a compliance flag is raised.
+#### Notes:
+- Each stage represents an internal transition inside PaySaxas' systems.
+- All funds are safeguarded during compliance and settlement checks.
+- Completed transfers automatically trigger webhook notifications.
+- No provider-level statuses (BICs, internal routing, nodes, channels) are ever exposed
+
 ### SEPA OUT (Outgoing Transfers)
 
-**Automated Flow (Standard Route)**
+Outgoing SEPA transfers follow a unified lifecycle — identical for SEPA CT and SEPA Instant, with differences limited to execution speed and settlement
+handling.
 
-Outgoing SEPA transfers follow an automated lifecycle from order creation to settlement or return.
-Each stage ensures AML and regulatory compliance, liquidity validation, and reconciliation.
+#### Automated Flow (Standard Route)
 
 #### Typical sequence:
 Payment Created -> AML Screening -> Execution -> Settlement -> Completed
 
-- Payments are executed via approved rails under PSD2 and SEPA guidelines.
-- Failures or rejections automatically trigger status updates and webhook events.
-- No provider-specific data (e.g., BICs, routing nodes) are ever exposed.
+#### Notes:
+- Payments are executed under PSD2 and EPC guidelines.
+- Failures or rejections automatically update the status lifecycle and trigger webhook notifications.
+- Provider-specific codes and routing information are never exposed.
+
 
 ### Endpoints
 
-#### Outgoing Payments (SEPA OUT)
+#### Outgoing Payments — SEPA Credit Transfer (SEPA CT)
 
-| Method | Endpoint                                                                          | Description                                                                                  |
-|--------|-----------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
-| POST   | [`/payments/sepa-credit-transfers`](../OpenAPI/payments/createSepaCreditTransfer) | Creates a new outgoing SEPA Credit Transfer.                                                 |
-| GET    | [`/payments`](../OpenAPI/payments/listPayments)                                   | Retrieves a list of outgoing payments.                                                       |
-| GET    | [`/payments/{id}`](../OpenAPI/payments/getPaymentById)                            | Returns detailed information about a specific outgoing payment (amount, status, timestamps). |
+| Method | Endpoint                                                                          | Description                                                  |
+|--------|-----------------------------------------------------------------------------------|--------------------------------------------------------------|
+| POST   | [`/payments/sepa-credit-transfers`](../OpenAPI/payments/createSepaCreditTransfer) | Creates a new outgoing SEPA Credit Transfer (standard SEPA). |
 
-#### Incoming Payments (SEPA IN)
+#### Outgoing Payments — SEPA Instant (SCT Inst)
 
-| Method | Endpoint                                                           | Description                                                                                              |
-|--------|--------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| GET    | [`/transactions`](../OpenAPI/transactions/listTransactions)        | Lists all incoming transactions.                                                                         |
-| GET    | [`/transactions/{id}`](../OpenAPI/transactions/getTransactionById) | Retrieves full transaction details by transaction ID, including status, amount, currency, and reference. |
+| Method | Endpoint                           | Description                                          |
+|--------|------------------------------------|------------------------------------------------------|
+| POST   | `/payments/sepa-instant-transfers` | Creates a new outgoing SEPA Instant Credit Transfer. |
 
-> Incoming SEPA transfers are created automatically upon receipt from partner banks and are read-only in the API.
+#### Outgoing Payments — Unified Listing
+
+| Method | Endpoint                                               | Description                                                                 |
+|--------|--------------------------------------------------------|-----------------------------------------------------------------------------|
+| GET    | [`/payments`](../OpenAPI/payments/listPayments)        | Lists all outgoing payments across SEPA CT and SEPA Instant rails.          |
+| GET    | [`/payments/{id}`](../OpenAPI/payments/getPaymentById) | Returns full details of a specific outgoing payment, including scheme type. |
+
+#### Incoming Payments — SEPA IN
+
+| Method | Endpoint                                                           | Description                                                               |
+|--------|--------------------------------------------------------------------|---------------------------------------------------------------------------|
+| GET    | [`/transactions`](../OpenAPI/transactions/listTransactions)        | Lists all incoming SEPA transactions (SEPA CT and SEPA Instant combined). |
+| GET    | [`/transactions/{id}`](../OpenAPI/transactions/getTransactionById) | Retrieves full transaction details by transaction ID.                     |
+
+> SEPA incoming transfers are created automatically upon receipt and are read-only in the API.
 
 #### Webhooks (Payment & Transaction Events)
 
