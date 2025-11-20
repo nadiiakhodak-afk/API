@@ -948,47 +948,19 @@ paths:
                                                 example: xyz321
     /transactions/{id}:
         get:
-            summary: Retrieve Transaction Details
-            description: >
-                Retrieves full details about a specific transaction by its unique ID.
-                Works for all transaction directions: incoming, outgoing.
-            operationId: getTransactionById
-            tags:
-                - Transactions
+            summary: "Retrieve Transaction Details"
+            description: "Returns full details of a SEPA transaction (incoming or outgoing)."
             parameters:
                 -
                     name: id
                     in: path
                     required: true
-                    description: Unique transaction identifier (e.g. `txn_345ab9`)
                     schema:
                         type: string
-                -
-                    name: Authorization
-                    in: header
-                    required: true
-                    description:
-                        Bearer token for authentication. Example `Bearer YOUR_API_TOKEN`
-                    schema:
-                        type: string
-                -
-                    name: Accept
-                    in: header
-                    required: true
-                    description:
-                        Response format. Example `application/json`
-                    schema:
-                        type: string
-                -
-                    name: X-Request-Id
-                    in: header
-                    required: false
-                    description: Optional trace identifier for logging and correlation.
-                    schema:
-                        type: string
+                    description: "Unique transaction identifier."
             responses:
-                '200':
-                    description: OK
+                200:
+                    description: "Transaction details returned successfully."
                     content:
                         application/json:
                             schema:
@@ -996,94 +968,160 @@ paths:
                                 properties:
                                     id:
                                         type: string
-                                        description: Unique transaction identifier.
-                                        example: txn_345ab9
+                                        description: "Unique transaction identifier."
                                     account_id:
                                         type: string
-                                        description: Linked account ID.
-                                        example: acc_782b4f
+                                        description: "Linked account ID."
                                     type:
                                         type: string
-                                        description:
-                                            Transaction direction — one of incoming, outgoing.
                                         enum: [ incoming, outgoing ]
-                                        example: incoming
+                                        description: "Transaction direction."
+                                    payment_scheme:
+                                        type: string
+                                        enum: [ SEPA, SEPA_INSTANT ]
+                                        description: "Payment rail used."
                                     status:
                                         type: string
-                                        description: Unified lifecycle status.
                                         enum: [ pending, processing, completed, failed, returned ]
-                                        example: completed
+                                        description: "Unified lifecycle status."
+                                    status_history:
+                                        type: array
+                                        description: "Chronological log of status changes."
+                                        items:
+                                            type: object
+                                            properties:
+                                                status:
+                                                    type: string
+                                                created_at:
+                                                    type: string
+                                                    format: date-time
                                     amount:
                                         type: number
-                                        format: float
-                                        description: Transaction amount in EUR (immutable).
-                                        example: 1200.50
+                                        description: "Transaction amount in EUR (immutable)."
                                     currency:
                                         type: string
-                                        description: Always "EUR".
-                                        example: EUR
+                                        description: "Always 'EUR' for SEPA transactions."
                                     reference:
                                         type: string
-                                        description: Payment or transfer reference.
-                                        example: Salary January 2025
+                                        description: "Payment or transfer reference."
                                     sender:
                                         type: object
-                                        description: Present only for incoming transactions.
+                                        nullable: true
+                                        description: "Present only for incoming transactions."
                                         properties:
+                                            type:
+                                                type: string
+                                                enum: [ company, individual ]
                                             name:
                                                 type: string
-                                                description: Sender name.
-                                                example: ACME GmbH
                                             iban:
                                                 type: string
-                                                description: Sender IBAN (Finnish IBAN used in examples).
-                                                example: FI76512108001245126199
+                                            country:
+                                                type: string
+                                                description: "ISO 3166-1 alpha-2 country code."
+                                            address:
+                                                type: string
+                                    sender_bank:
+                                        type: object
+                                        nullable: true
+                                        description: "Details of the sender’s bank (incoming transactions)."
+                                        properties:
+                                            bic:
+                                                type: string
+                                            name:
+                                                type: string
+                                            country:
+                                                type: string
+                                            address:
+                                                type: string
+                                    fees:
+                                        type: object
+                                        description: "Applied transaction fee."
+                                        properties:
+                                            amount:
+                                                type: number
+                                            currency:
+                                                type: string
                                     metadata:
                                         type: object
-                                        description: Internal non-sensitive metadata.
-                                        properties:
-                                            internal_reference:
-                                                type: string
-                                                example: SAFE_TXN_8471
+                                        description: >
+                                            Optional non-sensitive metadata.
+                                            Internal metadata (AML flags, routing notes, risk scores) is never exposed.
                                     created_at:
                                         type: string
                                         format: date-time
-                                        description: Timestamp when the transaction was created (ISO 8601, UTC).
-                                        example: 2025-01-10T08:30:00Z
+                                    received_at:
+                                        type: string
+                                        format: date-time
+                                        nullable: true
+                                    settled_at:
+                                        type: string
+                                        format: date-time
+                                        nullable: true
                                     updated_at:
                                         type: string
                                         format: date-time
-                                        description: Timestamp of last status update (ISO 8601, UTC).
-                                        example: 2025-01-10T09:02:00Z
                             examples:
-                                incomingExample:
-                                    summary: Incoming SEPA credit
+                                incoming_sepa:
+                                    summary: "Incoming SEPA credit"
                                     value:
-                                        id: txn_908aa2
-                                        account_id: acc_32c410
-                                        type: incoming
-                                        status: completed
+                                        id: "txn_908aa2"
+                                        account_id: "acc_32c410"
+                                        type: "incoming"
+                                        payment_scheme: "SEPA"
+                                        status: "completed"
+                                        status_history:
+                                            - { status: "pending", created_at: "2025-01-10T07:55:00Z" }
+                                            - { status: "processing", created_at: "2025-01-10T08:05:00Z" }
+                                            - { status: "completed", created_at: "2025-01-10T08:30:00Z" }
                                         amount: 1200.50
-                                        currency: EUR
-                                        reference: Salary January 2025
+                                        currency: "EUR"
+                                        reference: "Salary January 2025"
                                         sender:
-                                            name: ACME GmbH
-                                            iban: FI76512108001245126199
-                                        created_at: 2025-01-10T08:30:00Z
-                                        updated_at: 2025-01-10T09:02:00Z
-                                outgoingExample:
-                                    summary: Outgoing payment
+                                            type: "company"
+                                            name: "ACME GmbH"
+                                        iban: "FI765121080001245126199"
+                                        country: "FI"
+                                        address: "Mannerheimintie 12, 00100 Helsinki, Finland"
+                                        sender_bank:
+                                            bic: "OKOYFIHH"
+                                            name: "OP Financial Group (Test)"
+                                            country: "FI"
+                                            address: "Gebhardinaukio 1, 00510 Helsinki, Finland"
+                                        fees:
+                                            amount: 0.34
+                                            currency: "EUR"
+                                        metadata:
+                                            internal_reference: "SAFE_TXN_8471"
+                                        created_at: "2025-01-10T07:55:00Z"
+                                        received_at: "2025-01-10T08:20:00Z"
+                                        settled_at: "2025-01-10T08:30:00Z"
+                                        updated_at: "2025-01-10T09:02:00Z"
+                                outgoing_sepa:
+                                    summary: "Outgoing SEPA payment"
                                     value:
-                                        id: txn_345ac1
-                                        account_id: acc_782b4f
-                                        type: outgoing
-                                        status: completed
+                                        id: "txn_345ac1"
+                                        account_id: "acc_782b4f"
+                                        type: "outgoing"
+                                        payment_scheme: "SEPA"
+                                        status: "completed"
+                                        status_history:
+                                            - { status: "pending", created_at: "2025-01-15T11:00:00Z" }
+                                            - { status: "processing", created_at: "2025-01-15T11:10:00Z" }
+                                            - { status: "completed", created_at: "2025-01-15T11:35:00Z" }
                                         amount: 250.00
-                                        currency: EUR
-                                        reference: PAY-2025-0109
-                                        created_at: 2025-01-15T11:20:00Z
-                                        updated_at: 2025-01-15T11:35:00Z
-                '400':
+                                        currency: "EUR"
+                                        reference: "PAY-2025-0109"
+                                        fees:
+                                            amount: 0.20
+                                            currency: "EUR"
+                                        metadata:
+                                            internal_reference: "OUT_TXN_5531"
+                                        created_at: "2025-01-15T11:00:00Z"
+                                        received_at: null
+                                        settled_at: "2025-01-15T11:35:00Z"
+                                        updated_at: "2025-01-15T11:35:00Z"
+                400:
                     description: Validation Error — Invalid transaction ID or malformed request.
                     content:
                         application/json:
@@ -1096,19 +1134,19 @@ paths:
                                         error_description: Invalid transaction ID format.
                                         metadata:
                                             trace_id: tr_12af61
-                '401':
+                401:
                     description: Unauthorized — Missing or invalid authentication token.
                     content:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/ErrorResponse'
-                '403':
+                403:
                     description: Insufficient Permissions — Access denied (scope transactions:read required).
                     content:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/ErrorResponse'
-                '404':
+                404:
                     description: Transaction Not Found — The specified transaction does not exist or access is restricted.
                     content:
                         application/json:
@@ -1121,7 +1159,7 @@ paths:
                                         error_description: Transaction with ID txn_345ab9 not found or access is restricted.
                                         metadata:
                                             trace_id: tr_5e71cb
-                '500':
+                500:
                     description: Internal Error — Unexpected server-side error.
                     content:
                         application/json:
@@ -1129,7 +1167,7 @@ paths:
                                 $ref: '#/components/schemas/ErrorResponse'
     /transactions:
         get:
-            summary: List Transactions
+            summary: "List Transactions"
             description: >
                 Retrieves a paginated list of transactions for the authenticated customer.  
                 Transactions are immutable ledger records and returned in read-only mode.
@@ -1144,62 +1182,193 @@ paths:
                     name: cursor
                     in: query
                     required: false
-                    description: Cursor for pagination; use the `next_cursor` value from the previous response.
                     schema:
                         type: string
+                    description: "Cursor for pagination; use the next_cursor value from the previous response."
                 -
-                    name: Authorization
-                    in: header
+                    name: account_id
+                    in: query
                     required: true
-                    description: Authentication token.
                     schema:
                         type: string
-                        example: Bearer YOUR_API_TOKEN
+                    description: "Returns only the transactions associated with the specified account."
                 -
-                    name: Accept
-                    in: header
-                    required: true
-                    description: Response format.
-                    schema:
-                        type: string
-                        example: application/json
-                -
-                    name: X-Request-Id
-                    in: header
+                    name: date_from
+                    in: query
                     required: false
-                    description: Optional trace identifier for logging and correlation.
                     schema:
                         type: string
-                        example: req_123e4567-e89b-12d3-a456-426614174000
+                    description: "Returns transactions created on or after this date (UTC). Format: YYYY-MM-DD."
+                -
+                    name: date_to
+                    in: query
+                    required: false
+                    schema:
+                        type: string
+                    description: "Returns transactions created on or before this date (UTC). Format: YYYY-MM-DD."
             responses:
-                '200':
-                    description: Transactions list successfully retrieved.
+                200:
+                    description: "Transactions list successfully retrieved."
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/TransactionsListResponse'
+                                type: object
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            type: object
+                                            properties:
+                                                id:
+                                                    type: string
+                                                    description: "Unique transaction identifier."
+                                                account_id:
+                                                    type: string
+                                                type:
+                                                    type: string
+                                                    enum: [ incoming, outgoing ]
+                                                amount:
+                                                    type: number
+                                                currency:
+                                                    type: string
+                                                reference:
+                                                    type: string
+                                                status:
+                                                    type: string
+                                                    enum: [ pending, processing, completed, failed, returned ]
+                                                created_at:
+                                                    type: string
+                                                    format: date-time
+                                                received_at:
+                                                    type: string
+                                                    nullable: true
+                                                    format: date-time
+                                                settled_at:
+                                                    type: string
+                                                    nullable: true
+                                                    format: date-time
+                                                updated_at:
+                                                    type: string
+                                                    format: date-time
+                                                payment_scheme:
+                                                    type: string
+                                                    enum: [ SEPA, SEPA_INSTANT ]
+                                                status_history:
+                                                    type: array
+                                                    items:
+                                                        type: object
+                                                        properties:
+                                                            status:
+                                                                type: string
+                                                            created_at:
+                                                                type: string
+                                                                format: date-time
+                                                sender:
+                                                    type: object
+                                                    nullable: true
+                                                    properties:
+                                                        type:
+                                                            type: string
+                                                        name:
+                                                            type: string
+                                                        iban:
+                                                            type: string
+                                                        country:
+                                                            type: string
+                                                        address:
+                                                            type: string
+                                                sender_bank:
+                                                    type: object
+                                                    nullable: true
+                                                    properties:
+                                                        bic:
+                                                            type: string
+                                                        name:
+                                                            type: string
+                                                        country:
+                                                            type: string
+                                                        address:
+                                                            type: string
+                                                fees:
+                                                    type: object
+                                                    properties:
+                                                        amount:
+                                                            type: number
+                                                        currency:
+                                                            type: string
+                                                pagination:
+                                                    type: object
+                                                    properties:
+                                                        next_cursor:
+                                                            type: string
+                                                            nullable: true
                             examples:
-                                success:
+                                example_transactions:
+                                    summary: "Example response with Finnish test data"
                                     value:
                                         data:
                                             -
-                                                id: txn_345ab9
-                                                account_id: acc_782b4f
-                                                type: incoming
+                                                id: "txn_345ab9"
+                                                account_id: "acc_782b4f"
+                                                type: "incoming"
                                                 amount: 2500.00
-                                                currency: EUR
-                                                status: completed
-                                                reference: INV-2025-0032
-                                                created_at: 2025-01-15T10:15:00Z
+                                                currency: "EUR"
+                                                status: "completed"
+                                                reference: "INV-2025-0032"
+                                                created_at: "2025-01-15T10:15:00Z"
+                                                received_at: "2025-01-15T10:15:00Z"
+                                                settled_at: "2025-01-15T10:20:00Z"
+                                                updated_at: "2025-01-15T10:30:00Z"
+                                                payment_scheme: "SEPA"
+                                                status_history:
+                                                    -
+                                                        status: "pending"
+                                                        created_at: "2025-01-15T10:15:00Z"
+                                                    -
+                                                        status: "processing"
+                                                        created_at: "2025-01-15T10:16:00Z"
+                                                    -
+                                                        status: "completed"
+                                                        created_at: "2025-01-15T10:20:00Z"
+                                                sender:
+                                                    type: "company"
+                                                    name: "Finland Test Industries Oy"
+                                                iban: "FI0250001520001234"
+                                                country: "FI"
+                                                address: "Mannerheimintie 10, 00100 Helsinki, Finland"
+                                                sender_bank:
+                                                    bic: "OKOYFIHH"
+                                                    name: "OP Financial Group (Test)"
+                                                    country: "FI"
+                                                    address: "Gebhardinaukio 1, 00510 Helsinki, Finland"
+                                                fees:
+                                                    amount: 0.34
+                                                    currency: "EUR"
                                             -
-                                                id: txn_345ac1
-                                                account_id: acc_782b4f
-                                                type: outgoing
+                                                id: "txn_345ac1"
+                                                account_id: "acc_782b4f"
+                                                type: "outgoing"
                                                 amount: 120.75
-                                                currency: EUR
-                                                status: failed
-                                                reference: PAY-2025-0109
-                                                created_at: 2025-01-15T11:20:00Z
+                                                currency: "EUR"
+                                                status: "failed"
+                                                reference: "PAY-2025-0109"
+                                                created_at: "2025-01-15T11:20:00Z"
+                                                received_at: "2025-01-15T11:20:00Z"
+                                                settled_at: "2025-01-15T11:21:00Z"
+                                                updated_at: "2025-01-15T11:25:00Z"
+                                                payment_scheme: "SEPA"
+                                                status_history:
+                                                    -
+                                                        status: "pending"
+                                                        created_at: "2025-01-15T11:20:00Z"
+                                                    -
+                                                        status: "failed"
+                                                        created_at: "2025-01-15T11:25:00Z"
+                                                sender: null
+                                                sender_bank: null
+                                                fees:
+                                                    amount: 0.15
+                                                    currency: "EUR"
                                         pagination:
                                             next_cursor: eyJwYWdlIjoyfQ==
                 '400':
