@@ -5,6 +5,7 @@
     "listPayments",
     "getPaymentById",
     "createSepaCreditTransfer",
+    "createSepaInstantCreditTransfer",
     "Webhooks"
   ]
 }

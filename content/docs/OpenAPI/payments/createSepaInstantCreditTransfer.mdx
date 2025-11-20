@@ -1,0 +1,89 @@
+---
+
+title: Outgoing Payments — SEPA Instant (SCT Inst)
+full: true
+_openapi:
+  method: POST
+  route: /payments/sepa-instant-transfers
+  toc: []
+  structuredData:
+    headings: []
+    contents:
+      - content: >
+            Creates an outgoing SEPA Instant Credit Transfer (SCT Inst) from the customer’s account.
+---
+
+
+Creates an outgoing SEPA Instant Credit Transfer (SCT Inst) from the customer’s account.
+
+<APIPage document={"./openapi/api.yaml"} operations={[{"path":"/payments/sepa-instant-transfers","method":"post"}]} webhooks={[]} hasHead={false} />
+
+## Webhook Notifications — SEPA Instant (SCT Inst)
+
+Webhooks are emitted for each SEPA Instant payment lifecycle event.
+Payload contains only the id of the affected payment.
+
+| Event             | Description                                                                     |
+|-------------------|---------------------------------------------------------------------------------|
+| payment.created   | Triggered when a new SEPA Instant payment is created.                           |
+| payment.completed | Triggered when the payment is successfully settled (funds delivered instantly). |
+| payment.failed    | Triggered when Instant payment processing fails                                 |
+| payment.returned  | Triggered when the payment is returned by the receiving bank                    |
+
+
+## Delivery and Headers
+
+Every webhook request includes the following mandatory headers:
+
+| Header       | Example                       | Description                                                        |
+|--------------|-------------------------------|--------------------------------------------------------------------|
+| X-Event      | payment.created               | Specifies the event type.                                          |
+| X-Request-Id | req_9a7c4e2f                  | Unique webhook delivery identifier (for deduplication).            |
+| Date         | Wed, 05 Nov 2025 12:45:30 GMT | UTC timestamp when the webhook was generated.                      |
+| Content-Type | application/json              | Always application/json.                                           |
+
+
+## Payload Format
+
+Each webhook payload is minimal and contains only one field:
+```json
+{
+    "id": "entity_123456789"
+}
+```
+
+## Examples
+
+### Payment completed
+```
+POST /webhooks/payments
+X-Event: payment.completed
+X-Request-Id: req_9a7c4e2f
+Date: Wed, 05 Nov 2025 12:45:30 GMT
+Content-Type: application/json
+```
+```json
+{
+"id": "pay_123456789"
+}
+```
+
+## Acknowledgement and Retries
+
+- Your endpoint must respond with any 2xx HTTP status within 5 seconds.
+- If no success response is received, the webhook is retried up to 3 times within 24 hours using exponential backoff (1 min 5 min 30 min).
+- Use the X-Request-Id value to deduplicate repeated deliveries.
+
+## Security Notes
+
+- Webhooks never include personal, financial, or KYC/KYB data.
+- Payloads always contain only the entity id.
+- After receiving a webhook, always call GET `/payments/{id}` to fetch the current state.
+
+## Recommended Handling Flow
+
+1. Receive webhook and verify signature + timestamp.
+2. Log X-Event, id, and X-Request-Id.
+3. Respond with HTTP 200 or 204.
+4. Fetch entity details via GET `/payments/{id}`.
+5. Apply internal business logic (update CRM, trigger workflows, analytics, etc.).

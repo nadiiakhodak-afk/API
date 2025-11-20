@@ -510,7 +510,7 @@ paths:
                                         example: "2025-10-23T11:45:00Z"
                                     metadata:
                                         type: object
-                                        description:  non-sensitive internal data.
+                                        description: non-sensitive internal data.
                                         properties:
                                             created_by:
                                                 type: string
@@ -2678,3 +2678,287 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/ErrorResponse'
+    /payments/sepa-instant-transfers:
+        post:
+            summary: Create SEPA Instant Credit Transfer (SCT Inst)
+            description: Creates an outgoing SEPA Instant Credit Transfer (SCT Inst) from the customer's account.
+            operationId: createSepaInstantPayment
+            tags:
+                - Payments
+            parameters:
+                -
+                    in: header
+                    name: Authorization
+                    required: true
+                    schema:
+                        type: string
+                    example: "Bearer YOUR_API_TOKEN"
+                    description: Authentication token.
+                -
+                    in: header
+                    name: Content-Type
+                    required: true
+                    schema:
+                        type: string
+                    example: application/json
+                -
+                    in: header
+                    name: X-Request-Id
+                    required: false
+                    schema:
+                        type: string
+                    example: "req_123e4567-e89b-12d3-a456-426614174000"
+                    description: Optional trace ID.
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - account_id
+                                - amount
+                                - currency
+                                - beneficiary_name
+                                - beneficiary_iban
+                            properties:
+                                account_id:
+                                    type: string
+                                    description: Customer account to be debited.
+                                    example: acc_782b4f
+                                amount:
+                                    type: number
+                                    format: float
+                                    description: Payment amount (EUR).
+                                    example: 125.50
+                                currency:
+                                    type: string
+                                    description: Must be "EUR".
+                                    example: EUR
+                                beneficiary_name:
+                                    type: string
+                                    description: Beneficiary full name.
+                                    example: Test name
+                                beneficiary_iban:
+                                    type: string
+                                    description: Beneficiary IBAN.
+                                    example: FI0250001520001234
+                                end_to_end_id:
+                                    type: string
+                                    description: Optional end-to-end identifier (max 35 chars).
+                                    example: E2E-2025-00042
+                                reference:
+                                    type: string
+                                    maxLength: 140
+                                    description: Unstructured remittance information (max 140 chars).
+                                    example: Invoice #2025-0098
+                                metadata:
+                                    type: object
+                                    description: Optional non-sensitive client metadata.
+                                    properties:
+                                        client_reference:
+                                            type: string
+                                            example: Test reference
+                        examples:
+                            example:
+                                value:
+                                    debtor_account_id: acc_782b4f
+                                    amount: 250.00
+                                    currency: EUR
+                                    beneficiary:
+                                        name: ACME Oy
+                                        iban: FI1350001540000056
+                                    reference: Invoice #2025-0098
+            responses:
+                '201':
+                    description: Payment successfully created.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    id:
+                                        type: string
+                                        description: Unique payment identifier.
+                                        example: pay_84910d
+                                    account_id:
+                                        type: string
+                                        description: Debited customer account ID.
+                                        example: acc_782b4f
+                                    payment_scheme:
+                                        type: string
+                                        description: Payment scheme. For this endpoint SEPA_INSTANT.
+                                        example: SEPA_INSTANT
+                                    status:
+                                        type: string
+                                        description: >
+                                            Payment lifecycle status:  
+                                            • `pending`  
+                                            • `processing`
+                                            • `completed`
+                                            • `failed`
+                                            • `returned`
+                                        example: pending
+                                    amount:
+                                        type: number
+                                        description: Payment amount in EUR.
+                                        example: 250.00
+                                    currency:
+                                        type: string
+                                        description: Payment currency. Always "EUR" for SEPA Instant.
+                                        example: EUR
+                                    beneficiary_name:
+                                        type: string
+                                        description: Beneficiary full name.
+                                        example: Test name
+                                    beneficiary_iban:
+                                        type: string
+                                        description: Beneficiary IBAN.
+                                        example: FI0250001520001234
+                                    reference:
+                                        type: string
+                                        description: Unstructured remittance information (max 140 chars).
+                                        example: Invoice #2025-0098
+                                    end_to_end_id:
+                                        type: string
+                                        description: Optional end-to-end identifier used for reconciliation. May be null or omitted.
+                                        example: E2E-2025-00042
+                                    fees:
+                                        type: object
+                                        description: Applied payment fee.
+                                        properties:
+                                            amount:
+                                                type: number
+                                                description: Fee amount applied to the payment.
+                                                example: 250.00
+                                            currency:
+                                                type: string
+                                                description: Fee currency. Always "EUR".
+                                                example: EUR
+                                    metadata:
+                                        type: object
+                                        description: Optional non-sensitive client metadata returned as-is.
+                                        properties:
+                                            client_reference:
+                                                type: string
+                                                description: Arbitrary key–value pairs defined by the client. Contents are not used for routing or compliance checks
+                                                example: Test reference
+                                    created_at:
+                                        type: string
+                                        format: date-time
+                                        description: Timestamp of creation (ISO 8601, UTC).
+                                        example: 2025-01-15T10:30:00Z
+                                    updated_at:
+                                        type: string
+                                        format: date-time
+                                        description: Timestamp of creation (ISO 8601, UTC).
+                                        example: 2025-01-15T10:30:00Z
+                            examples:
+                                success:
+                                    value:
+                                        id: pay_84910d
+                                        account_id: acc_782b4f
+                                        payment_scheme: SEPA_INSTANT
+                                        status: pending
+                                        beneficiary_name: Test name
+                                        beneficiary_iban: FI0250001520001234
+                                        reference: Invoice #2025-0098
+                                        fees:
+                                            amount: 0.20
+                                            currency: EUR
+                                        metadata:
+                                            client_reference: Test reference
+                                        end_to_end_id: E2E-2025-00042
+                                        created_at: 2025-01-15T10:30:00Z
+                                        updated_at: 2025-01-15T10:30:00Z
+                '400':
+                    description: Invalid or missing required fields.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                validationError:
+                                    value:
+                                        error_name: Validation Error
+                                        error_description: Invalid IBAN format.
+                                        metadata:
+                                            trace_id: tr_12af61
+                '401':
+                    description: Missing or invalid token.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                validationError:
+                                    value:
+                                        error_name: Unauthorized
+                                        error_description: Invalid or missing token.
+                                        metadata:
+                                            trace_id: tr_12af61
+                '403':
+                    description: Insufficient Permissions
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                validationError:
+                                    value:
+                                        error_name: Insufficient Permissions
+                                        error_description: Scope payments:write required.
+                                        metadata:
+                                            trace_id: tr_12af61
+                '409':
+                    description: Used when an identical payment request has already been processed (internal anti-duplication logic)
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                duplicatePayment:
+                                    value:
+                                        error_name: Duplicate Payment
+                                        error_description: A payment with the same parameters already exists.
+                                        metadata:
+                                            trace_id: tr_82cb19
+                '422':
+                    description: Payment Cannot Be Processed
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                duplicatePayment:
+                                    value:
+                                        error_name: Payment Cannot Be Processed
+                                        error_description: Insufficient balance.
+                                        metadata:
+                                            trace_id: tr_82cb19
+                '500':
+                    description: Unexpected processing error.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                validationError:
+                                    value:
+                                        error_name: Internal Error
+                                        error_description: Unexpected processing error.
+                                        metadata:
+                                            trace_id: tr_12af61
+                '503':
+                    description: Unexpected processing error.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                validationError:
+                                    value:
+                                        error_name: Provider Unavailable
+                                        error_description: SEPA Instant provider is not reachable
+                                        metadata:
+                                            trace_id: tr_12af61
