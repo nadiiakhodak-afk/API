@@ -2471,42 +2471,45 @@ paths:
                                             trace_id: tr_82cb19
     /payments/sepa-credit-transfers:
         post:
-            summary: Create Outgoing SEPA Credit Transfer
+            summary: Create SEPA Credit Transfer (SCT)
             description: >
-                Creates a new outgoing SEPA Credit Transfer (SEPA OUT).  
-                Payments are validated, queued, and processed asynchronously.  
-                Once created, a payment cannot be modified — only cancelled before processing.
+                        Creates a new outgoing SEPA Credit Transfer (SEPA OUT).
+                        Payments are validated, queued, and processed asynchronously.
+                        Once created, a payment cannot be modified — only cancelled before processing.
             operationId: createSepaCreditTransfer
             tags:
                 - Payments
-            security:
-                -
-                    bearerAuth: [ ]
             parameters:
                 -
-                    name: Authorization
                     in: header
+                    name: Authorization
                     required: true
                     schema:
                         type: string
-                        example: Bearer YOUR_API_TOKEN
+                    example: "Bearer YOUR_API_TOKEN"
                     description: Authentication token.
                 -
-                    name: Accept
                     in: header
+                    name: Content-Type
                     required: true
                     schema:
                         type: string
-                        example: application/json
-                    description: Response format.
+                    example: application/json
                 -
-                    name: X-Request-Id
                     in: header
+                    name: Accept
+                    required: true
+                    schema:
+                        type: string
+                    example: application/json
+                -
+                    in: header
+                    name: X-Request-Id
                     required: false
                     schema:
                         type: string
-                        example: req_123e4567-e89b-12d3-a456-426614174000
-                    description: Optional trace identifier for logging and correlation.
+                    example: "req_123e4567-e89b-12d3-a456-426614174000"
+                    description: Optional trace ID.
             requestBody:
                 required: true
                 content:
@@ -2514,24 +2517,21 @@ paths:
                         schema:
                             type: object
                             required:
-                                - debtor_account_id
+                                - account_id
                                 - amount
                                 - currency
                                 - beneficiary
                             properties:
-                                debtor_account_id:
+                                account_id:
                                     type: string
-                                    description: PaySaxas account ID to debit funds from.
-                                    example: acc_782b4f
+                                    description: Customer account to be debited.
                                 amount:
                                     type: number
-                                    format: float
-                                    description: Amount in EUR to transfer.
-                                    example: 250.00
+                                    description: Payment amount (EUR).
                                 currency:
                                     type: string
-                                    description: Must always be `"EUR"`.
-                                    example: EUR
+                                    enum: [ EUR ]
+                                    description: Must be "EUR".
                                 beneficiary:
                                     type: object
                                     required:
@@ -2540,29 +2540,38 @@ paths:
                                     properties:
                                         name:
                                             type: string
-                                            description: Recipient legal name.
-                                            example: ACME Oy
+                                            description: Beneficiary full name.
                                         iban:
                                             type: string
-                                            description: Recipient IBAN (validated per ISO 13616).
-                                            example: FI1350001540000056
+                                            description: Beneficiary IBAN.
                                 reference:
                                     type: string
                                     maxLength: 140
-                                    description: Optional payment reference text.
-                                    example: Invoice #2025-0098
-                        examples:
-                            example:
-                                value:
-                                    debtor_account_id: acc_782b4f
-                                    amount: 250.00
-                                    currency: EUR
-                                    beneficiary:
-                                        name: ACME Oy
-                                        iban: FI1350001540000056
-                                    reference: Invoice #2025-0098
+                                    nullable: true
+                                    description: Unstructured remittance information.
+                                end_to_end_id:
+                                    type: string
+                                    maxLength: 35
+                                    nullable: true
+                                    description: Optional end-to-end identifier.
+                                metadata:
+                                    type: object
+                                    additionalProperties: true
+                                    nullable: true
+                                    description: Optional non-sensitive client metadata.
+                        example:
+                            account_id: "acc_782b4f"
+                            amount: 250.00
+                            currency: "EUR"
+                            beneficiary:
+                                name: "Test name"
+                                iban: "FI1350001540000056"
+                            reference: "Invoice 2025-0041"
+                            end_to_end_id: "E2E-2025-0041"
+                            metadata:
+                                client_reference: "Test reference"
             responses:
-                '201':
+                201:
                     description: Payment successfully created.
                     content:
                         application/json:
@@ -2571,113 +2580,138 @@ paths:
                                 properties:
                                     id:
                                         type: string
-                                        description: Unique payment ID.
-                                        example: pay_84910d
-                                    debtor_account_id:
+                                    account_id:
                                         type: string
-                                        description: Account from which the payment was initiated.
-                                        example: acc_782b4f
+                                    payment_scheme:
+                                        type: string
+                                        enum: [ SEPA ]
+                                    status:
+                                        type: string
+                                        enum:
+                                            - pending
+                                            - processing
+                                            - completed
+                                            - failed
+                                            - returned
                                     amount:
                                         type: number
-                                        description: Payment amount (EUR).
-                                        example: 250.00
                                     currency:
                                         type: string
-                                        description: Always `"EUR"`.
-                                        example: EUR
+                                        enum: [ EUR ]
                                     beneficiary:
                                         type: object
                                         properties:
                                             name:
                                                 type: string
-                                                description: Recipient legal name.
-                                                example: ACME Oy
                                             iban:
                                                 type: string
-                                                description: Recipient IBAN.
-                                                example: FI1350001540000056
                                     reference:
                                         type: string
-                                        description: Payment reference text.
-                                        example: Invoice #2025-0098
-                                    status:
+                                        nullable: true
+                                    end_to_end_id:
                                         type: string
-                                        description: >
-                                            Unified lifecycle status:  
-                                            • `pending` — created and awaiting processing  
-                                            • `processing` — under AML or operational checks  
-                                            • `completed` — credited and reconciled  
-                                            • `failed` — could not be processed  
-                                            • `returned` — refunded after rejection
-                                        example: pending
+                                        nullable: true
+                                    fees:
+                                        type: object
+                                        properties:
+                                            amount:
+                                                type: number
+                                            currency:
+                                                type: string
+                                                enum: [ EUR ]
+                                    metadata:
+                                        type: object
+                                        additionalProperties: true
+                                        nullable: true
                                     created_at:
                                         type: string
                                         format: date-time
-                                        description: Timestamp of creation (ISO 8601, UTC).
-                                        example: 2025-01-15T10:30:00Z
-                            examples:
-                                success:
-                                    value:
-                                        id: pay_84910d
-                                        debtor_account_id: acc_782b4f
-                                        amount: 250.00
-                                        currency: EUR
-                                        beneficiary:
-                                            name: ACME Oy
-                                            iban: FI1350001540000056
-                                        reference: Invoice #2025-0098
-                                        status: pending
-                                        created_at: 2025-01-15T10:30:00Z
-                '400':
-                    description: Invalid or missing required fields.
+                                    updated_at:
+                                        type: string
+                                        format: date-time
+                            example:
+                                id: "pay_84910d"
+                                account_id: "acc_782b4f"
+                                payment_scheme: "SEPA"
+                                status: "pending"
+                                amount: 250.00
+                                currency: "EUR"
+                                beneficiary:
+                                    name: "Test name"
+                                    iban: "FI1350001540000056"
+                                reference: "Invoice 2025-0041"
+                                end_to_end_id: "E2E-2025-0041"
+                                fees:
+                                    amount: 0.34
+                                    currency: "EUR"
+                                metadata:
+                                    client_reference: "Test reference"
+                                created_at: "2025-01-15T10:30:00Z"
+                                updated_at: "2025-01-15T10:30:00Z"
+                400:
+                    description: Validation Error
                     content:
                         application/json:
-                            schema:
-                                $ref: '#/components/schemas/ErrorResponse'
-                            examples:
-                                validationError:
-                                    value:
-                                        error_name: Validation Error
-                                        error_description: Invalid payload or missing fields.
-                                        metadata:
-                                            trace_id: tr_12af61
-                '401':
-                    description: Missing or invalid token.
+                            example:
+                                error_name: "Validation Error"
+                                error_description: "Invalid IBAN format."
+                                metadata: { trace_id: "tr_48cb19" }
+                401:
+                    description: Unauthorized
                     content:
                         application/json:
-                            schema:
-                                $ref: '#/components/schemas/ErrorResponse'
-                '403':
-                    description: Access denied — scope `payments:create` required.
+                            example:
+                                error_name: "Unauthorized"
+                                error_description: "Invalid or missing token."
+                                metadata: { trace_id: "tr_19fe81" }
+                403:
+                    description: Insufficient Permissions
                     content:
                         application/json:
-                            schema:
-                                $ref: '#/components/schemas/ErrorResponse'
-                '404':
-                    description: Provided `debtor_account_id` does not exist or is inactive.
+                            example:
+                                error_name: "Insufficient Permissions"
+                                error_description: "Scope payments:write required."
+                                metadata: { trace_id: "tr_6abf31" }
+                404:
+                    description: Account Not Found
                     content:
                         application/json:
-                            schema:
-                                $ref: '#/components/schemas/ErrorResponse'
-                '409':
-                    description: Duplicate payment detected for the same account, amount, IBAN, and reference within 60 seconds.
+                            example:
+                                error_name: "Not Found"
+                                error_description: "The specified account does not exist."
+                                metadata: { trace_id: "tr_483bb1" }
+                409:
+                    description: Duplicate Payment
                     content:
                         application/json:
-                            schema:
-                                $ref: '#/components/schemas/ErrorResponse'
-                            examples:
-                                duplicatePayment:
-                                    value:
-                                        error_name: Duplicate Payment
-                                        error_description: Duplicate payment detected for the same account, amount, IBAN, and reference within 60 seconds.
-                                        metadata:
-                                            trace_id: tr_82cb19
-                '500':
-                    description: Unexpected processing error.
+                            example:
+                                error_name: "Duplicate Payment"
+                                error_description: "A payment with the same parameters already exists."
+                                metadata: { trace_id: "tr_91cb12" }
+                422:
+                    description: Payment Cannot Be Processed
                     content:
                         application/json:
-                            schema:
-                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error_name: "Payment Cannot Be Processed"
+                                error_description: "Insufficient balance."
+                                metadata: { trace_id: "tr_554ca1" }
+                500:
+                    description: Internal Error
+                    content:
+                        application/json:
+                            example:
+                                error_name: "Internal Error"
+                                error_description: "Unexpected processing error."
+                                metadata: { trace_id: "tr_82cb19" }
+                503:
+                    description: Provider Unavailable
+                    content:
+                        application/json:
+                            example:
+                                error_name: "Provider Unavailable"
+                                error_description: "SEPA provider is not reachable."
+                                metadata: { trace_id: "tr_33fa22" }
     /payments/sepa-instant-transfers:
         post:
             summary: Create SEPA Instant Credit Transfer (SCT Inst)
