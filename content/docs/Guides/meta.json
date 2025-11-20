@@ -9,6 +9,7 @@
     "openapi_postman",
     "safeguarding",
     "deprecation",
-    "security"
+    "security",
+    "whitelisting"
   ]
 }

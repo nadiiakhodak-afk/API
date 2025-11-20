@@ -1,0 +1,50 @@
+---
+title: API Keys & IP Whitelisting
+icon: KeyRound
+---
+
+API keys are used for server-to-server access to the PaySaxas API.
+They allow a client system to authenticate its requests:
+
+```
+Authorization: Bearer {API_KEY}
+```
+
+API keys are created internally by the PaySaxas team. Clients **do not** create or manage keys through the API.
+The platform supports **only Secret API key**. Each newly created key starts with an empty whitelist.
+
+## IP Whitelisting
+
+Each newly created key starts with an empty IP whitelist.
+When requesting API keys, the client must include their Whitelisted IP addresses in the request.
+
+Only **IPv4 CIDR** ranges are supported, for example:
+- 203.0.113.10/32 — **single IP**
+- 203.0.113.0/24 — **network**
+
+For every incoming request:
+
+1. The API key is validated
+2. The external IP address of the caller is determined
+3. The system checks whether the IP matches any entry in the whitelist
+
+If the IP is not in the whitelist, the request is rejected.
+
+### Error Response (Non-whitelisted IP)
+
+```
+HTTP 403 Forbidden
+```
+```
+{
+    "error_name": "IP Not Allowed",
+    "error_description": "This API key cannot be used from the current IP address.",
+    "metadata": {
+        "trace_id": "tr_xxxxxxx"
+    }
+}
+```
+
+### Managing the Whitelist
+
+The whitelist is maintained by the PaySaxas team. CIDR entries are added or removed manually. Changes take effect immediately.
