@@ -2881,7 +2881,7 @@ paths:
                                 error_name: "Provider Unavailable"
                                 error_description: "SEPA provider is not reachable."
                                 metadata: { trace_id: "tr_33fa22" }
-    /payments/sepa-instant-transfers:
+    /payments/sepa-instant-credit-transfers:
         post:
             summary: Create SEPA Instant Credit Transfer (SCT Inst)
             description: Creates an outgoing SEPA Instant Credit Transfer (SCT Inst) from the customer's account.
